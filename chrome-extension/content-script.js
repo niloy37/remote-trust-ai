@@ -8,6 +8,10 @@
     const hostname = new URL(url).hostname.toLowerCase();
     if (hostname.endsWith("linkedin.com")) return "linkedin";
     if (hostname.endsWith("indeed.com")) return "indeed";
+    if (hostname.includes("greenhouse")) return "greenhouse";
+    if (hostname.includes("lever")) return "lever";
+    if (hostname.includes("ashby")) return "ashby";
+    if (hostname.includes("workable")) return "workable";
     return null;
   }
 
@@ -104,6 +108,41 @@
     }
     return null;
   }
+
+  function extractGenericJobPage() {
+
+  const jsonLd = extractJsonLdJob();
+
+  const title =
+    jsonLd.title ||
+    firstText(["h1", "h2"]) ||
+    document.title;
+
+  const company =
+    jsonLd.company ||
+    getMetaContent(["og:site_name"]);
+
+  const description =
+    fallbackMainText();
+
+  if (!description || description.length < 200) {
+
+    return {
+      ok: false,
+      error: "Could not extract enough readable job text."
+    };
+  }
+
+  return {
+    ok: true,
+    source: "Generic Portal",
+    job_title: title,
+    company,
+    location: jsonLd.location || null,
+    job_description: description,
+    page_url: window.location.href
+  };
+}
 
   function extractJsonLdJob() {
     const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
@@ -430,10 +469,7 @@
   function extractJobPage() {
     const source = sourceFromUrl(location.href);
     if (!source) {
-      return {
-        ok: false,
-        error: "RemoteTrust AI only reads job pages from LinkedIn and Indeed."
-      };
+      return extractGenericJobPage();
     }
 
     const extracted = source === "linkedin" ? extractLinkedIn() : extractIndeed();

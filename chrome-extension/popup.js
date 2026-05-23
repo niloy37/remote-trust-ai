@@ -1,5 +1,5 @@
 const API_BASE_URL = "http://127.0.0.1:8000";
-const SUPPORTED_HOSTS = ["linkedin.com", "indeed.com"];
+const SUPPORTED_HOSTS = [];
 
 const els = {
   unsupported: document.getElementById("unsupported"),
@@ -35,12 +35,18 @@ let activeSupported = false;
 
 function isSupportedUrl(url) {
   try {
-    const hostname = new URL(url).hostname.toLowerCase();
-    return SUPPORTED_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+    const parsed = new URL(url);
+
+    return (
+       parsed.protocol === "https:" ||
+       parsed.protocol.startsWith("http")
+    );
   } catch {
     return false;
   }
 }
+
+
 
 function setStatus(message, type = "") {
   els.status.textContent = message;
@@ -225,22 +231,60 @@ async function extractFromTab(tab) {
   }
 }
 
+function isSearchPage(url) {
+
+  const lower = url.toLowerCase();
+
+  return (
+    lower.includes("/jobs/search") ||
+    lower.includes("/collections/") ||
+    lower.includes("/recommended/") ||
+    lower.includes("/results/")
+  );
+}
+
 async function analyzeCurrentPage() {
+
   if (!activeTab || !activeSupported) return;
+
+  if (isSearchPage(activeTab.url)) {
+
+    setStatus(
+      "Please open an individual job posting for best analysis quality.",
+      "error"
+    );
+
+    return;
+  }
+
   if (!els.consent.checked) {
-    setStatus("Please confirm consent before reading the page.", "error");
+
+    setStatus(
+      "Please confirm consent before reading the page.",
+      "error"
+    );
+
     return;
   }
 
   setLoading(true);
+
   setStatus("Reading visible job content from this page...");
+
   els.result.classList.add("hidden");
 
   try {
+
     const extracted = await extractFromTab(activeTab);
-    if (!extracted?.ok) throw new Error(extracted?.error || "Could not extract job description.");
+
+    if (!extracted?.ok) {
+      throw new Error(
+        extracted?.error || "Could not extract job description."
+      );
+    }
 
     setStatus("Analyzing with local RemoteTrust AI backend...");
+
     const response = await fetch(`${API_BASE_URL}/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -253,37 +297,92 @@ async function analyzeCurrentPage() {
     });
 
     if (!response.ok) {
+
       const body = await response.json().catch(() => ({}));
-      throw new Error(body.detail || `Backend returned ${response.status}`);
+
+      throw new Error(
+        body.detail || `Backend returned ${response.status}`
+      );
     }
 
     const result = await response.json();
+
     result.extracted.job_title ||= extracted.job_title || null;
     result.extracted.company ||= extracted.company || null;
     result.extracted.location ||= extracted.location || null;
+
     renderResult(result);
-    setStatus(`Analyzed ${extracted.source} job page successfully.`, "success");
+
+    setStatus(
+      `Analyzed ${extracted.source} job page successfully.`,
+      "success"
+    );
+
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : "Could not analyze this page.", "error");
+
+    setStatus(
+      error instanceof Error
+        ? error.message
+        : "Could not analyze this page.",
+      "error"
+    );
+
   } finally {
+
     setLoading(false);
   }
 }
 
 async function init() {
-  const stored = await chrome.storage.local.get(["remoteTrustCountry", "remoteTrustDesiredRole"]);
-  if (stored.remoteTrustCountry) els.country.value = stored.remoteTrustCountry;
-  if (stored.remoteTrustDesiredRole) els.desiredRole.value = stored.remoteTrustDesiredRole;
 
   activeTab = await getActiveTab();
-  activeSupported = Boolean(activeTab?.url && isSupportedUrl(activeTab.url));
-  els.unsupported.classList.toggle("hidden", activeSupported);
+
+  const stored = await chrome.storage.local.get(
+  "remoteTrustConsent"
+);
+
+els.consent.checked =
+  stored.remoteTrustConsent || false;
+
+  activeSupported = Boolean(
+    activeTab?.url &&
+    isSupportedUrl(activeTab.url)
+  );
+
+  els.unsupported.classList.toggle(
+    "hidden",
+    activeSupported
+  );
+
   setLoading(false);
+
+  if (!activeSupported) {
+
+    setStatus(
+      "Open a job posting page to analyze it.",
+      "error"
+    );
+
+    return;
+  }
+
+  setStatus(
+    "Ready to analyze this job page."
+  );
 }
 
-els.consent.addEventListener("change", () => setLoading(false));
-els.country.addEventListener("change", () => chrome.storage.local.set({ remoteTrustCountry: els.country.value }));
-els.desiredRole.addEventListener("change", () => chrome.storage.local.set({ remoteTrustDesiredRole: els.desiredRole.value }));
-els.analyze.addEventListener("click", analyzeCurrentPage);
+els.consent.addEventListener("change", async () => {
+
+  await chrome.storage.local.set({
+    remoteTrustConsent: els.consent.checked
+  });
+
+  setLoading(false);
+});
+
+els.analyze.addEventListener(
+  "click",
+  analyzeCurrentPage
+);
 
 init();
