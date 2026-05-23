@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RemoteTrust AI</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div class="mark" aria-hidden="true">RT</div>
+        <div>
+          <h1>RemoteTrust AI</h1>
+          <p>LinkedIn / Indeed job verifier</p>
+        </div>
+      </header>
+
+      <section id="unsupported" class="notice hidden">
+        Open a LinkedIn or Indeed job page, then run RemoteTrust AI from this popup.
+      </section>
+
+      <section class="panel">
+        <label class="field">
+          <span>Applicant country</span>
+          <select id="country">
+            <option>Argentina</option>
+            <option>Brazil</option>
+            <option>Canada</option>
+            <option>France</option>
+            <option>Germany</option>
+            <option selected>India</option>
+            <option>Kenya</option>
+            <option>Mexico</option>
+            <option>Nigeria</option>
+            <option>Philippines</option>
+            <option>Poland</option>
+            <option>Portugal</option>
+            <option>South Africa</option>
+            <option>United Kingdom</option>
+            <option>United States</option>
+            <option>Vietnam</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Desired role</span>
+          <input id="desiredRole" placeholder="Software Engineer" />
+        </label>
+
+        <label class="consent">
+          <input id="consent" type="checkbox" />
+          <span>
+            I consent to read the visible job content from this LinkedIn or Indeed page and send it to my local RemoteTrust AI backend for analysis.
+          </span>
+        </label>
+
+        <button id="analyze" disabled>Read page & analyze</button>
+      </section>
+
+      <section id="status" class="status hidden"></section>
+
+      <section id="result" class="result hidden">
+        <div class="score-row">
+          <div class="score-ring">
+            <strong id="finalScore">0</strong>
+            <span>/100</span>
+          </div>
+          <div>
+            <span id="verdict" class="badge">Verdict</span>
+            <h2 id="jobTitle">Untitled role</h2>
+            <p id="company">Company not detected</p>
+            <p id="classification" class="classification">Classification pending</p>
+            <p id="titleValidation" class="title-validation">Title check pending</p>
+            <p id="companyVerification" class="company-verification">Web check pending</p>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div><span>Legitimacy</span><strong id="legitimacy">0</strong></div>
+          <div><span>Remote</span><strong id="remote">0</strong></div>
+          <div><span>Eligibility</span><strong id="eligibility">0</strong></div>
+          <div><span>Quality</span><strong id="quality">0</strong></div>
+        </div>
+
+        <p id="explanation" class="explanation"></p>
+
+        <div class="classification-card">
+          <div>
+            <span>ML confidence</span>
+            <strong id="classificationConfidence">0%</strong>
+          </div>
+          <div>
+            <span>Layer status</span>
+            <strong id="classificationStatus">Fallback</strong>
+          </div>
+        </div>
+
+        <h3>Remote restrictions</h3>
+        <ul id="remoteRestrictions"></ul>
+
+        <h3>ML evidence</h3>
+        <ul id="classificationEvidence"></ul>
+
+        <h3>Red flags</h3>
+        <ul id="redFlags"></ul>
+
+        <h3>Positive signals</h3>
+        <ul id="positiveSignals"></ul>
+
+        <h3>Web evidence</h3>
+        <ul id="webSources"></ul>
+
+        <a id="dashboardLink" href="http://localhost:3000/dashboard" target="_blank" rel="noreferrer">Open dashboard</a>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+text,label
+"Company: Northstar Labs. Role: Senior Software Engineer. Fully remote worldwide. Salary $120,000-$160,000. Interview process includes recruiter screen and technical interview. Apply at https://jobs.greenhouse.io/northstarlabs",legitimate
+"US only remote customer support role. Must be authorized to work in the US. Benefits and salary range included.",restricted_remote
+"Urgent hiring data entry assistant. Earn $500/day. No interview. Send money for equipment fee by wire transfer.",fake
+"Remote marketing associate but must commute to office twice per week and live within 30 miles.",restricted_remote
+"Commission-only sales job, no base pay, vague responsibilities, guaranteed income if you act now.",suspicious
+"Canada only product manager role with clear responsibilities, salary CAD 110,000-140,000, benefits, interviews.",restricted_remote
+"Telegram recruiter offers crypto payroll and asks for gift cards before onboarding.",fake
+"Data Analyst at Atlas Metrics. Work from anywhere, async team, SQL Python dashboards, salary $80,000-$105,000.",high_quality_remote
+"Backend Engineer at Veridian Cloud. Remote-first distributed team, PostgreSQL, Python, Docker, benefits.",high_quality_remote
+"Administrative assistant. Kindly send your personal details on WhatsApp only. Processing fee required.",fake
+"Frontend Engineer at BrightCart. Fully remote in EU only, benefits, salary, interview process.",restricted_remote
+"Customer Success Manager at Helpwise. Remote worldwide, contractor-friendly, clear role and professional email careers@helpwise.example.",legitimate

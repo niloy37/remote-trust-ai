@@ -1,0 +1,59 @@
+[
+  {
+    "name": "Verified global remote software role",
+    "applicant_country": "India",
+    "desired_role": "Software Engineer",
+    "job_url": "https://jobs.greenhouse.io/northstarlabs/jobs/remote-senior-software-engineer",
+    "job_description": "Company: Northstar Labs\nJob Title: Senior Software Engineer\nLocation: Remote worldwide\nNorthstar Labs is a remote-first distributed team building secure collaboration tools. This is a fully remote role open to global applicants and contractor-friendly for countries where we do not have a local entity. Salary: USD $120,000-$160,000 per year.\nResponsibilities: You will build TypeScript and Python APIs, own backend services, collaborate with product and design, and improve reliability. Required skills: Python, TypeScript, React, PostgreSQL, Docker, API design. Benefits include paid time off, learning budget, and home office stipend. Interview process: recruiter screen, technical interview, team interview, final interview. Apply at https://jobs.greenhouse.io/northstarlabs/jobs/remote-senior-software-engineer"
+  },
+  {
+    "name": "Legitimate US-only remote role",
+    "applicant_country": "Brazil",
+    "desired_role": "Customer Support",
+    "job_url": "https://jobs.lever.co/clearpathsupport/customer-support-specialist",
+    "job_description": "Company: ClearPath Support\nJob Title: Customer Support Specialist\nLocation: Remote, United States only\nClearPath Support is hiring a remote Customer Support Specialist. This role is remote but candidates must be authorized to work in the US and must be located in the United States. Salary: USD $58,000-$72,000. Responsibilities: respond to customer tickets, document product issues, collaborate with engineering, and improve help center content. Required skills: communication, SaaS support, SQL basics. Benefits include health insurance, PTO, and 401(k). Interview process: recruiter screen, manager interview, support simulation. Apply at https://jobs.lever.co/clearpathsupport/customer-support-specialist"
+  },
+  {
+    "name": "Fake equipment payment scam",
+    "applicant_country": "Philippines",
+    "desired_role": "Data Entry",
+    "job_url": null,
+    "job_description": "Job Title: Remote Data Entry Assistant\nWe are urgent hiring immediately. Earn $500/day from home with no interview and no experience needed. Kindly send your personal details and pay for training. You must send money for an equipment fee by wire transfer before onboarding. Contact recruiter at hiringdesk247@gmail.com or WhatsApp only. Guaranteed income."
+  },
+  {
+    "name": "Hybrid role pretending to be remote",
+    "applicant_country": "Mexico",
+    "desired_role": "Marketing Manager",
+    "job_url": "https://careers.cityspark.example/jobs/marketing-manager",
+    "job_description": "Company: CitySpark Media\nJob Title: Marketing Manager\nLocation: Remote / Hybrid in Austin, Texas\nThis role is listed as remote but office required twice each week. Candidates must commute and must be located within 30 miles of Austin. Salary: USD $85,000-$100,000. Responsibilities: lead campaign planning, manage paid media, collaborate with sales, and report marketing analytics. Required skills: analytics, communication, paid acquisition. Interview process: recruiter screen, hiring manager interview, case presentation."
+  },
+  {
+    "name": "Low-quality commission-only role",
+    "applicant_country": "Nigeria",
+    "desired_role": "Sales",
+    "job_url": null,
+    "job_description": "Company: Growth Rocket Partners\nRole: Remote Sales Representative\nLocation: Remote unclear\nCommission-only opportunity with guaranteed income for motivated people. Simple tasks, limited spots, act now. No base pay and no benefits listed. Responsibilities are flexible and depend on weekly offers. No hiring process is described. Contact growthrocket@yahoo.com."
+  },
+  {
+    "name": "Legitimate Canada-only role",
+    "applicant_country": "United States",
+    "desired_role": "Product Manager",
+    "job_url": "https://jobs.ashbyhq.com/maplegrid/product-manager",
+    "job_description": "Company: MapleGrid\nJob Title: Product Manager\nLocation: Remote, Canada only\nMapleGrid builds energy planning software. This is a remote role for candidates located in Canada only. Must be authorized to work in Canada. Salary: CAD $110,000-$140,000. Responsibilities: own roadmap discovery, write product specs, work with engineering and customers, measure outcomes. Required skills: product strategy, analytics, communication, SQL. Benefits include health coverage, PTO, and learning budget. Interview process: recruiter screen, product case, panel interview. Apply at https://jobs.ashbyhq.com/maplegrid/product-manager"
+  },
+  {
+    "name": "Suspicious Telegram recruiter job",
+    "applicant_country": "India",
+    "desired_role": "Administrative Assistant",
+    "job_url": null,
+    "job_description": "Remote Administrative Assistant needed. Dear applicant, message the recruiter on Telegram for details. We pay crypto weekly and you must buy gift cards to verify your payment account. No interview. Kindly send your personal details to the Telegram manager. Processing fee required."
+  },
+  {
+    "name": "High-quality worldwide data analyst role",
+    "applicant_country": "Kenya",
+    "desired_role": "Data Analyst",
+    "job_url": "https://jobs.greenhouse.io/atlasmetrics/jobs/data-analyst-remote",
+    "job_description": "Company: Atlas Metrics\nJob Title: Data Analyst\nLocation: Work from anywhere, worldwide\nAtlas Metrics is an async team helping climate companies understand operations. Global applicants welcome. Salary: USD $80,000-$105,000. Responsibilities: build SQL models, create dashboards, analyze customer data, present insights, and partner with product managers. Required skills: SQL, Python, data analysis, Excel, analytics, communication. Timezone requirements: 4 hours UTC overlap required. Benefits include paid time off, home office stipend, and learning budget. Interview process: recruiter screen, SQL exercise, team interview. Apply at https://jobs.greenhouse.io/atlasmetrics/jobs/data-analyst-remote"
+  }
+]
+

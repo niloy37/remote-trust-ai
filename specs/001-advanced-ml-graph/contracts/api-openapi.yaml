@@ -1,0 +1,244 @@
+openapi: 3.1.0
+info:
+  title: RemoteTrust AI Advanced Classification Contract
+  version: 1.0.0
+paths:
+  /analyze:
+    post:
+      summary: Analyze a job and return advanced classification evidence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeRequest'
+      responses:
+        '200':
+          description: Completed job analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeResponse'
+        '400':
+          description: Invalid request or insufficient URL-only content
+  /jobs/{job_id}:
+    get:
+      summary: Return a saved job analysis with advanced classification fields
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Saved job analysis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobRecord'
+        '404':
+          description: Job not found
+components:
+  schemas:
+    AnalyzeRequest:
+      type: object
+      required:
+        - applicant_country
+      properties:
+        job_url:
+          type: [string, 'null']
+        job_description:
+          type: string
+          default: ''
+        applicant_country:
+          type: string
+          minLength: 2
+        desired_role:
+          type: [string, 'null']
+    AnalyzeResponse:
+      type: object
+      required:
+        - job_id
+        - final_score
+        - verdict
+        - scores
+        - extracted
+        - title_validation
+        - company_verification
+        - graph_verification
+        - classification
+        - red_flags
+        - positive_signals
+        - explanation
+        - recommended_action
+      properties:
+        job_id:
+          type: string
+        final_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        verdict:
+          enum: [Verified, Caution, Risky]
+        classification:
+          $ref: '#/components/schemas/JobClassification'
+        scores:
+          type: object
+        extracted:
+          type: object
+        title_validation:
+          type: object
+        company_verification:
+          type: object
+        graph_verification:
+          $ref: '#/components/schemas/GraphVerification'
+        red_flags:
+          type: array
+          items:
+            type: string
+        positive_signals:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: string
+        recommended_action:
+          enum: [Apply, Review carefully, Avoid]
+    JobRecord:
+      allOf:
+        - $ref: '#/components/schemas/AnalyzeResponse'
+        - type: object
+          required:
+            - job_description
+            - applicant_country
+            - created_at
+          properties:
+            job_url:
+              type: [string, 'null']
+            job_description:
+              type: string
+            applicant_country:
+              type: string
+            desired_role:
+              type: [string, 'null']
+            created_at:
+              type: string
+              format: date-time
+    JobClassification:
+      type: object
+      required:
+        - label
+        - confidence
+        - status
+        - layer_scores
+        - evidence
+      properties:
+        label:
+          enum:
+            - LEGIT_REMOTE
+            - COUNTRY_RESTRICTED_REMOTE
+            - HYBRID_OR_LOCATION_BOUND
+            - LOW_QUALITY_UNVERIFIED
+            - LIKELY_SCAM
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        status:
+          enum: [complete, degraded, fallback]
+        fallback_reason:
+          type: [string, 'null']
+        layer_scores:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/LayerScore'
+        evidence:
+          $ref: '#/components/schemas/ClassificationEvidence'
+    LayerScore:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          enum: [available, skipped, unavailable, degraded]
+        probabilities:
+          type: object
+          additionalProperties:
+            type: number
+            minimum: 0
+            maximum: 1
+        score:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 1
+        evidence:
+          type: array
+          items:
+            type: string
+        reason:
+          type: [string, 'null']
+    ClassificationEvidence:
+      type: object
+      required:
+        - top_red_flags
+        - positive_signals
+        - remote_restrictions
+        - graph_summary
+        - confidence_factors
+        - explanation
+      properties:
+        top_red_flags:
+          type: array
+          items:
+            type: string
+        positive_signals:
+          type: array
+          items:
+            type: string
+        remote_restrictions:
+          type: object
+        graph_summary:
+          type: object
+        confidence_factors:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: string
+    GraphVerification:
+      type: object
+      required:
+        - status
+        - score
+        - entity_confidence
+        - signals
+        - warnings
+        - evidence_paths
+      properties:
+        status:
+          type: string
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        entity_confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+        relationship_status:
+          type: [string, 'null']
+        fallback_backend:
+          enum: [neo4j, sqlite, none, null]
+        signals:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        evidence_paths:
+          type: array
+          items:
+            type: string

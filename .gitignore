@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.db
+*.log
+.env
+.env.local
+node_modules/
+.next/
+dist/
+build/
+ml/artifacts/*.joblib
+remote-trust-ai/
