@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ml.advanced_features import extract_remote_restrictions
-from ml.feature_extractor import extract_features
+from backend.ml.advanced_features import extract_remote_restrictions
+from backend.ml.feature_extractor import extract_features
 
 
 def test_extracts_allowed_country_timezone_and_authorization() -> None:

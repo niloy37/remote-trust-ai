@@ -21,7 +21,7 @@ except Exception:  # pragma: no cover
     fuzz = None
 
 try:
-    from ml.feature_extractor import company_candidate_rejection_reason
+    from backend.ml.feature_extractor import company_candidate_rejection_reason
 except Exception:  # pragma: no cover - keep verifier importable if ml path is unavailable.
     company_candidate_rejection_reason = None
 

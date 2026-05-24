@@ -14,9 +14,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from ml.advanced_classifier import classify_job  # noqa: E402
-from ml.feature_extractor import clean_job_text  # noqa: E402
-from ml.scorer import analyze_job_text  # noqa: E402
+from backend.ml.advanced_classifier import classify_job  # noqa: E402
+from backend.ml.feature_extractor import clean_job_text  # noqa: E402
+from backend.ml.scorer import analyze_job_text  # noqa: E402
 
 
 def clamp(value: int, low: int = 0, high: int = 100) -> int:

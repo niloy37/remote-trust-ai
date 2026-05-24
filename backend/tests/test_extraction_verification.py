@@ -15,7 +15,7 @@ from app.models import AnalyzeRequest
 from app.services.analyzer import analyze
 from app.services.job_fetcher import JobFetchError, fetch_job_description
 from app.services.web_verifier import WebSource, classify_source, score_sources, verify_company_web, verify_company_web_cached
-from ml.feature_extractor import company_candidate_rejection_reason, extract_features
+from backend.ml.feature_extractor import company_candidate_rejection_reason, extract_features
 
 
 ENVISIO_POSTING = """

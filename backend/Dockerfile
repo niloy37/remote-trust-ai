@@ -1,17 +1,16 @@
 FROM python:3.12-slim
 
+FROM python:3.12-slim
+
 WORKDIR /app
 
-COPY backend/requirements.txt ./requirements.txt
+COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend ./backend
-COPY ml ./ml
+COPY . .
 
-ENV PYTHONPATH=/app:/app/backend
-
-WORKDIR /app/backend
+ENV PYTHONPATH=/app
 
 EXPOSE 8000
 
