@@ -1,4 +1,15 @@
-import type { AnalysisResponse, AnalyzeRequest, FeedbackRequest, FeedbackResponse, JobRecord } from "@/lib/types";
+import type {
+  AnalysisResponse,
+  AnalyzeRequest,
+  FeedbackRequest,
+  FeedbackResponse,
+  IngestionQueueRequest,
+  IngestionQueueResponse,
+  IngestionRunSummary,
+  IngestionStatusResponse,
+  JobRecord,
+  OpportunityFeedResponse
+} from "@/lib/types";
 
 const API_BASE_PATH = process.env.NEXT_PUBLIC_API_BASE_PATH || "/api/backend";
 
@@ -36,8 +47,29 @@ export function getJobs(): Promise<JobRecord[]> {
   return request<JobRecord[]>("/jobs", { cache: "no-store" });
 }
 
+export function getOpportunities(): Promise<OpportunityFeedResponse> {
+  return request<OpportunityFeedResponse>("/opportunities", { cache: "no-store" });
+}
+
 export function getJob(jobId: string): Promise<JobRecord> {
   return request<JobRecord>(`/jobs/${jobId}`, { cache: "no-store" });
+}
+
+export function runIngestion(): Promise<IngestionRunSummary> {
+  return request<IngestionRunSummary>("/ingestion/run", {
+    method: "POST"
+  });
+}
+
+export function getIngestionStatus(): Promise<IngestionStatusResponse> {
+  return request<IngestionStatusResponse>("/ingestion/status", { cache: "no-store" });
+}
+
+export function queueIngestionUrl(payload: IngestionQueueRequest): Promise<IngestionQueueResponse> {
+  return request<IngestionQueueResponse>("/ingestion/queue", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export function sendFeedback(payload: FeedbackRequest): Promise<FeedbackResponse> {
@@ -46,4 +78,3 @@ export function sendFeedback(payload: FeedbackRequest): Promise<FeedbackResponse
     body: JSON.stringify(payload)
   });
 }
-

@@ -80,7 +80,9 @@ RemoteTrust AI works like a pre-application trust layer.
 | Analyzer UI | Next.js `/analyze` page accepts pasted text or URL, applicant country, desired role, and sample jobs. | A fast demo path with realistic input. |
 | Results UI | Trust score ring, verdict badge, recommendation, classification, scoring pillars, red flags, positive signals, extraction quality, company evidence, title validation, and feedback buttons. | Explainable AI output that a judge can inspect. |
 | Dashboard | `/dashboard` lists saved analyses with search, verdict filter, country filter, score summaries, and result links. | Shows persistence and a working review workflow. |
-| API | FastAPI endpoints for analysis, job history, individual results, feedback, and health checks. | Clear product boundary and reusable backend. |
+| Curated opportunities | `/opportunities` shows the lakehouse-published feed with curated, review, and not-recommended buckets plus Job Trust Passport cards and Apply links. | Matches the hackathon output: a practical shortlist of vetted jobs. |
+| Real-time ingestion | DuckDB + Parquet Bronze/Silver/Gold layers collect sample files, approved remote-job feeds, and queued URLs on a 5-minute scheduler or manual run. | Shows a credible data pipeline, not just static demo data. |
+| API | FastAPI endpoints for analysis, job history, opportunities, ingestion status, manual ingestion runs, URL queueing, individual results, feedback, and health checks. | Clear product boundary and reusable backend. |
 | Persistence | SQLite stores analyses, extracted JSON, classification JSON, web evidence, graph evidence, and user feedback. | Demo survives refresh and supports longitudinal trust history. |
 | Scoring engine | Local deterministic scorer computes legitimacy, remote authenticity, global eligibility, and job quality. | Works without paid APIs or fragile external model calls. |
 | Advanced classification | Five-label classifier: `LEGIT_REMOTE`, `COUNTRY_RESTRICTED_REMOTE`, `HYBRID_OR_LOCATION_BOUND`, `LOW_QUALITY_UNVERIFIED`, `LIKELY_SCAM`. | Converts scores into practical job-seeker language. |
@@ -113,8 +115,10 @@ Use this for a 3-5 minute hackathon walkthrough.
 | 3 | Click **Try Verified Example** and analyze. | "The score rewards official apply links, clear remote language, salary, skills, and global eligibility." |
 | 4 | Click **Try Scam Example** and analyze. | "The system catches payment requests, chat-only contact, no-interview urgency, and vague responsibilities." |
 | 5 | Click **Try Restricted Remote Example** and analyze. | "A real job can still be bad for a global applicant if it is US-only or authorization-bound." |
-| 6 | Open **Dashboard**. | "Every analysis is saved, searchable, and filterable by verdict and country." |
-| 7 | Open a result and submit feedback. | "Feedback is persisted now and can become an active-learning loop later." |
+| 6 | Open **Curated Opportunities**. | "The expected output is a vetted shortlist, not just one score at a time." |
+| 7 | Switch between **Curated**, **Review**, and **Not recommended**. | "The system separates apply-ready roles from restricted jobs, hybrid traps, and scams." |
+| 8 | Open **Dashboard**. | "Every analysis is saved, searchable, and filterable by verdict and country." |
+| 9 | Open a result and submit feedback. | "Feedback is persisted now and can become an active-learning loop later." |
 
 <details>
 <summary><strong>Backup demo plan if a live URL blocks crawling</strong></summary>
@@ -277,6 +281,7 @@ flowchart LR
 | Extraction and crawling | httpx, BeautifulSoup, lxml, regex/heuristics, JSON-LD `JobPosting` parsing, tldextract, rapidfuzz. |
 | Scoring / ML | Local rule engine, feature extraction, title validator, advanced deterministic classifier, scikit-learn/joblib scripts for baseline TF-IDF + Logistic Regression. |
 | Storage | SQLite for saved analyses, feedback, and fallback graph tables. |
+| Lakehouse | DuckDB plus Parquet snapshots for Bronze raw events, Silver normalized postings, Gold opportunities, and ingestion run history. |
 | Graph | Neo4j Community in Docker, with SQLite fallback when Neo4j is unavailable. |
 | Extension | Manifest V3 Chrome extension with consent-based active-page extraction and scoped host permissions. |
 | Dev / deployment | Docker Compose, backend Dockerfile, frontend Dockerfile. |
@@ -410,6 +415,12 @@ cd backend
 python seed_db.py --reset
 ```
 
+Run the lakehouse collector manually:
+
+```bash
+curl -X POST http://localhost:8000/ingestion/run
+```
+
 ---
 
 ## Environment Variables
@@ -427,6 +438,10 @@ Backend:
 | `NEO4J_URI` | Neo4j bolt URL. |
 | `NEO4J_USER` / `NEO4J_PASSWORD` | Local graph credentials. |
 | `OPENAI_API_KEY` | Optional future extension flag. Core MVP does not require it. |
+| `INGESTION_ENABLED` | Starts the near-real-time collector when `true`. |
+| `INGESTION_INTERVAL_SECONDS` | Scheduler cadence, default `300`. |
+| `LAKEHOUSE_PATH` | DuckDB database and Parquet layer output path. |
+| `INGESTION_SOURCE_CONFIG` | Approved file/feed connector config. |
 
 Frontend:
 

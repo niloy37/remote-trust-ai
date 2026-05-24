@@ -1,7 +1,10 @@
 .venv/
 __pycache__/
+.pytest_cache/
 *.pyc
 *.db
+*.duckdb
+*.duckdb.wal
 *.log
 .env
 .env.local
@@ -9,5 +12,6 @@ node_modules/
 .next/
 dist/
 build/
+data/lakehouse/
 ml/artifacts/*.joblib
 remote-trust-ai/

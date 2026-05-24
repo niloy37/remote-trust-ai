@@ -44,8 +44,8 @@ export default function LandingPage() {
               <Link href="/analyze" className="btn-primary">
                 Analyze a Job <ArrowRight size={18} aria-hidden="true" />
               </Link>
-              <Link href="/dashboard" className="btn-secondary">
-                View Dashboard
+              <Link href="/opportunities" className="btn-secondary">
+                Curated Feed
               </Link>
             </div>
           </div>

@@ -3,6 +3,7 @@ import { ShieldCheck } from "lucide-react";
 
 const navItems = [
   { href: "/analyze", label: "Analyze" },
+  { href: "/opportunities", label: "Opportunities" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/#pillars", label: "Scoring" }
 ];
@@ -22,7 +23,7 @@ export function Header() {
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
+              className="rounded-lg px-2 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/[0.07] hover:text-white sm:px-3 sm:text-sm"
             >
               {item.label}
             </Link>

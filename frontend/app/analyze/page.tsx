@@ -153,7 +153,7 @@ export default function AnalyzerPage() {
             <h2 className="mt-3 text-2xl font-black text-white">Hybrid AI checks</h2>
             <div className="mt-6 space-y-4">
               {[
-                ["Rule-based scam detector", "Flags payment requests, chat-only recruiters, no-interview pressure, and suspicious links."],
+                ["Rule-based scam detector", "Identifies payment requests, chat-only recruiters, no-interview pressure, and suspicious links."],
                 ["NLP-style extraction", "Pulls company, title, salary, location, remote type, country restrictions, and work authorization."],
                 ["Structured scoring engine", "Weights legitimacy, remote authenticity, global eligibility, and quality into a final trust score."],
                 ["Future model wrapper", "Baseline ML and transformer placeholders are included without requiring paid APIs."]

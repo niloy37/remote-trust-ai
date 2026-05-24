@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BadgeCheck, BriefcaseBusiness, CheckCircle2, ExternalLink, Flag, Globe2, MapPinned, MessageSquareText, Sparkles, ThumbsDown, ThumbsUp, XCircle } from "lucide-react";
 import { useState } from "react";
 import { sendFeedback } from "@/lib/api";
+import { applyLinkFor } from "@/lib/apply-link";
 import type { AnalysisResponse, FeedbackValue } from "@/lib/types";
 import { ScoreCard } from "@/components/ScoreCard";
 import { ScoreRing } from "@/components/ScoreRing";
@@ -48,6 +49,15 @@ function readableSourceType(value: string) {
   return value.replaceAll("_", " ");
 }
 
+function userFacingText(value: string) {
+  return value
+    .replace(/\s+with\s+\d+%\s+confidence(?=\.)/gi, "")
+    .replace(/\s+with\s+\d+%\s+confidence\b/gi, "")
+    .replace(/\b\d+%\s+confidence\b/gi, "supporting evidence")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function extractionQuality(result: AnalysisResponse): { label: string; tone: string; detail: string } {
   const confidence = result.extracted.company_confidence ?? 0;
   if (result.extraction_warnings.length || !result.extracted.company) {
@@ -63,19 +73,23 @@ function extractionQuality(result: AnalysisResponse): { label: string; tone: str
   if (confidence >= 0.7) {
     return { label: "Good", tone: "text-cyan", detail: "Company evidence is usable" };
   }
-  return { label: "Review", tone: "text-amber", detail: "Low company confidence" };
+  return { label: "Review", tone: "text-amber", detail: "Company evidence needs review" };
 }
 
 function detailRows(result: AnalysisResponse): Array<[string, string]> {
   const extracted = result.extracted;
-  const companyConfidence =
+  const companyDetection =
     extracted.company_confidence === null || extracted.company_confidence === undefined
       ? "Not available"
-      : `${Math.round(extracted.company_confidence * 100)}%`;
+      : extracted.company_confidence >= 0.9
+        ? "High"
+        : extracted.company_confidence >= 0.7
+          ? "Good"
+          : "Needs review";
   return [
     ["Job title", extracted.job_title || "Not detected"],
     ["Company", extracted.company || "Not detected"],
-    ["Company confidence", companyConfidence],
+    ["Company detection", companyDetection],
     ["Company evidence", extracted.company_evidence || "Not available"],
     ["Salary", extracted.salary || "Not disclosed"],
     ["Location", extracted.location || "Not detected"],
@@ -91,6 +105,7 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
   const [feedbackStatus, setFeedbackStatus] = useState<string>("");
   const [isSending, setIsSending] = useState(false);
   const extraction = extractionQuality(result);
+  const applyUrl = applyLinkFor(result);
 
   async function handleFeedback(user_feedback: FeedbackValue) {
     setIsSending(true);
@@ -122,7 +137,7 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
                 </span>
               </div>
               <h2 className="mt-5 text-2xl font-black text-white sm:text-3xl">Remote job trust analysis</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">{result.explanation}</p>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">{userFacingText(result.explanation)}</p>
               {result.extraction_warnings.length ? (
                 <ul className="mt-4 max-w-2xl space-y-2">
                   {result.extraction_warnings.slice(0, 3).map((warning) => (
@@ -137,20 +152,25 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
                   Open shareable result <ExternalLink size={16} aria-hidden="true" />
                 </Link>
               ) : null}
+              {applyUrl ? (
+                <a href={applyUrl} target="_blank" rel="noreferrer" className="btn-primary mt-5">
+                  Apply to job <ExternalLink size={16} aria-hidden="true" />
+                </a>
+              ) : null}
             </div>
           </div>
           <div className="grid min-w-64 grid-cols-2 gap-3 rounded-lg border border-line bg-white/[0.04] p-3 text-center sm:grid-cols-4 lg:grid-cols-2">
             <div>
               <div className="text-xl font-black text-mint">{result.positive_signals.length}</div>
-              <div className="text-xs text-slate-400">Signals</div>
+              <div className="text-xs text-slate-400">Indicators</div>
             </div>
             <div>
               <div className="text-xl font-black text-rose">{result.red_flags.length}</div>
-              <div className="text-xs text-slate-400">Flags</div>
+              <div className="text-xs text-slate-400">Concerns</div>
             </div>
             <div>
-              <div className="text-xl font-black text-cyan">{Math.round(result.classification.confidence * 100)}%</div>
-              <div className="text-xs text-slate-400">Confidence</div>
+              <div className="text-base font-black text-cyan">{result.recommended_action}</div>
+              <div className="text-xs text-slate-400">Recommended</div>
             </div>
             <div>
               <div className={`text-xl font-black ${extraction.tone}`}>{extraction.label}</div>
@@ -163,31 +183,31 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
       <section className="surface rounded-lg p-6">
         <div className="flex items-center gap-2 text-cyan">
           <BadgeCheck size={18} aria-hidden="true" />
-          <h3 className="font-bold text-white">Advanced classification</h3>
+          <h3 className="font-bold text-white">Decision rationale</h3>
         </div>
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="rounded-lg border border-line bg-white/[0.04] p-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Prediction</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Application fit</div>
             <div className="mt-2 text-xl font-black text-white">{readableLabel(result.classification.label)}</div>
-            <div className="mt-2 text-sm text-slate-300">{Math.round(result.classification.confidence * 100)}% confidence</div>
-            <p className="mt-3 text-sm leading-6 text-slate-400">{result.classification.evidence.explanation}</p>
-            {result.classification.fallback_reason ? (
-              <p className="mt-3 rounded-lg border border-amber/20 bg-amber/[0.08] p-3 text-xs leading-5 text-amber">
-                {result.classification.fallback_reason}
-              </p>
-            ) : null}
+            <div className="mt-2 text-sm text-slate-300">Recommended action: {result.recommended_action}</div>
+            <p className="mt-3 text-sm leading-6 text-slate-400">{userFacingText(result.classification.evidence.explanation)}</p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {Object.entries(result.classification.layer_scores).map(([name, layer]) => (
-              <div key={name} className="rounded-lg border border-line bg-white/[0.04] p-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{name.replaceAll("_", " ")}</div>
-                <div className="mt-2 text-sm font-bold text-white">{layer.status}</div>
-                <div className="mt-1 text-sm text-slate-400">
-                  {layer.score === null || layer.score === undefined ? "No score" : `${Math.round(layer.score * 100)}% layer score`}
-                </div>
-                {layer.reason ? <p className="mt-2 text-xs leading-5 text-slate-500">{layer.reason}</p> : null}
-              </div>
-            ))}
+          <div className="rounded-lg border border-line bg-white/[0.04] p-4">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Decision evidence</div>
+            <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-300">
+              {[
+                ...result.classification.evidence.confidence_factors,
+                ...result.classification.evidence.positive_signals.slice(0, 2),
+                ...result.classification.evidence.top_red_flags.slice(0, 2)
+              ].slice(0, 5).map((item) => (
+                <li key={item} className="rounded-lg border border-line bg-ink/40 p-3">{userFacingText(item)}</li>
+              ))}
+              {!result.classification.evidence.confidence_factors.length &&
+              !result.classification.evidence.positive_signals.length &&
+              !result.classification.evidence.top_red_flags.length ? (
+                <li className="rounded-lg border border-line bg-ink/40 p-3">No additional decision evidence was returned.</li>
+              ) : null}
+            </ul>
           </div>
         </div>
       </section>
@@ -202,13 +222,13 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
         <section className="surface rounded-lg p-6">
           <div className="flex items-center gap-2 text-rose">
             <Flag size={18} aria-hidden="true" />
-            <h3 className="font-bold text-white">Red flags</h3>
+            <h3 className="font-bold text-white">Application concerns</h3>
           </div>
           <ul className="mt-4 space-y-3">
-            {(result.red_flags.length ? result.red_flags : ["No major red flags detected."]).map((flag) => (
+            {(result.red_flags.length ? result.red_flags : ["No major application concerns detected."]).map((flag) => (
               <li key={flag} className="flex gap-3 rounded-lg border border-line bg-white/[0.04] p-3 text-sm leading-6 text-slate-300">
                 <XCircle className="mt-0.5 shrink-0 text-rose" size={17} aria-hidden="true" />
-                <span>{flag}</span>
+                <span>{userFacingText(flag)}</span>
               </li>
             ))}
           </ul>
@@ -217,13 +237,13 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
         <section className="surface rounded-lg p-6">
           <div className="flex items-center gap-2 text-mint">
             <Sparkles size={18} aria-hidden="true" />
-            <h3 className="font-bold text-white">Positive trust signals</h3>
+            <h3 className="font-bold text-white">Trust indicators</h3>
           </div>
           <ul className="mt-4 space-y-3">
-            {(result.positive_signals.length ? result.positive_signals : ["Limited positive signals detected."]).map((signal) => (
+            {(result.positive_signals.length ? result.positive_signals : ["Limited trust evidence detected."]).map((signal) => (
               <li key={signal} className="flex gap-3 rounded-lg border border-line bg-white/[0.04] p-3 text-sm leading-6 text-slate-300">
                 <CheckCircle2 className="mt-0.5 shrink-0 text-mint" size={17} aria-hidden="true" />
-                <span>{signal}</span>
+                <span>{userFacingText(signal)}</span>
               </li>
             ))}
           </ul>
@@ -350,7 +370,13 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
             {detailRows(result).map(([label, value]) => (
               <div key={label} className="rounded-lg border border-line bg-white/[0.04] p-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{label}</div>
-                <div className="mt-2 break-words text-sm font-medium text-slate-100">{value}</div>
+                {label === "Apply URL" && applyUrl ? (
+                  <a href={applyUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 break-words text-sm font-semibold text-mint hover:text-emerald-200">
+                    Open application <ExternalLink size={14} aria-hidden="true" />
+                  </a>
+                ) : (
+                  <div className="mt-2 break-words text-sm font-medium text-slate-100">{value}</div>
+                )}
               </div>
             ))}
           </div>
