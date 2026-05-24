@@ -48,11 +48,35 @@ function readableSourceType(value: string) {
   return value.replaceAll("_", " ");
 }
 
+function extractionQuality(result: AnalysisResponse): { label: string; tone: string; detail: string } {
+  const confidence = result.extracted.company_confidence ?? 0;
+  if (result.extraction_warnings.length || !result.extracted.company) {
+    return {
+      label: "Limited",
+      tone: "text-amber",
+      detail: result.extraction_warnings[0] || "Company extraction needs review"
+    };
+  }
+  if (confidence >= 0.9) {
+    return { label: "High", tone: "text-mint", detail: "Structured company evidence" };
+  }
+  if (confidence >= 0.7) {
+    return { label: "Good", tone: "text-cyan", detail: "Company evidence is usable" };
+  }
+  return { label: "Review", tone: "text-amber", detail: "Low company confidence" };
+}
+
 function detailRows(result: AnalysisResponse): Array<[string, string]> {
   const extracted = result.extracted;
+  const companyConfidence =
+    extracted.company_confidence === null || extracted.company_confidence === undefined
+      ? "Not available"
+      : `${Math.round(extracted.company_confidence * 100)}%`;
   return [
     ["Job title", extracted.job_title || "Not detected"],
     ["Company", extracted.company || "Not detected"],
+    ["Company confidence", companyConfidence],
+    ["Company evidence", extracted.company_evidence || "Not available"],
     ["Salary", extracted.salary || "Not disclosed"],
     ["Location", extracted.location || "Not detected"],
     ["Remote type", extracted.remote_type || "Unclear"],
@@ -66,6 +90,7 @@ function detailRows(result: AnalysisResponse): Array<[string, string]> {
 export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanelProps) {
   const [feedbackStatus, setFeedbackStatus] = useState<string>("");
   const [isSending, setIsSending] = useState(false);
+  const extraction = extractionQuality(result);
 
   async function handleFeedback(user_feedback: FeedbackValue) {
     setIsSending(true);
@@ -98,6 +123,15 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
               </div>
               <h2 className="mt-5 text-2xl font-black text-white sm:text-3xl">Remote job trust analysis</h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">{result.explanation}</p>
+              {result.extraction_warnings.length ? (
+                <ul className="mt-4 max-w-2xl space-y-2">
+                  {result.extraction_warnings.slice(0, 3).map((warning) => (
+                    <li key={warning} className="rounded-lg border border-amber/30 bg-amber/[0.08] p-3 text-sm leading-6 text-amber">
+                      {warning}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {showOpenResultLink ? (
                 <Link href={`/results/${result.job_id}`} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-mint hover:text-emerald-200">
                   Open shareable result <ExternalLink size={16} aria-hidden="true" />
@@ -105,7 +139,7 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
               ) : null}
             </div>
           </div>
-          <div className="grid min-w-56 grid-cols-3 gap-3 rounded-lg border border-line bg-white/[0.04] p-3 text-center">
+          <div className="grid min-w-64 grid-cols-2 gap-3 rounded-lg border border-line bg-white/[0.04] p-3 text-center sm:grid-cols-4 lg:grid-cols-2">
             <div>
               <div className="text-xl font-black text-mint">{result.positive_signals.length}</div>
               <div className="text-xs text-slate-400">Signals</div>
@@ -117,6 +151,10 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
             <div>
               <div className="text-xl font-black text-cyan">{Math.round(result.classification.confidence * 100)}%</div>
               <div className="text-xs text-slate-400">Confidence</div>
+            </div>
+            <div>
+              <div className={`text-xl font-black ${extraction.tone}`}>{extraction.label}</div>
+              <div className="text-xs text-slate-400">Extraction</div>
             </div>
           </div>
         </div>
@@ -199,6 +237,17 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
             <h3 className="font-bold text-white">Extracted job details</h3>
           </div>
           <div className="mt-5 rounded-lg border border-line bg-white/[0.04] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Extraction quality</div>
+                <div className="mt-2 text-sm font-semibold text-white">{extraction.detail}</div>
+              </div>
+              <span className={`rounded-full border border-line bg-white/[0.06] px-3 py-1.5 text-xs font-bold ${extraction.tone}`}>
+                {extraction.label}
+              </span>
+            </div>
+          </div>
+          <div className="mt-4 rounded-lg border border-line bg-white/[0.04] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Job title legitimacy</div>

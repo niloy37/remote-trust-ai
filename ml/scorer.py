@@ -3,7 +3,15 @@ from __future__ import annotations
 import re
 from urllib.parse import urlparse
 
-from .feature_extractor import GLOBAL_REMOTE_PHRASES, REMOTE_RESTRICTION_PHRASES, clean_job_text, extract_features, has_professional_domain
+from .feature_extractor import (
+    GLOBAL_REMOTE_PHRASES,
+    REMOTE_RESTRICTION_PHRASES,
+    clean_job_text,
+    extract_features,
+    has_hard_hybrid_or_onsite_requirement,
+    has_optional_remote_choice,
+    has_professional_domain,
+)
 from .schemas import AnalysisResult, ExtractedJob, ScoreBreakdown, TitleValidation
 from .title_validator import validate_job_title
 
@@ -26,7 +34,20 @@ def is_official_apply_url(url: str | None) -> bool:
     if not url:
         return False
     domain = urlparse(url).netloc.lower()
-    trusted = ("greenhouse.io", "lever.co", "ashbyhq.com", "workable.com", "smartrecruiters.com", "jobs.", "careers.")
+    trusted = (
+        "greenhouse.io",
+        "lever.co",
+        "ashbyhq.com",
+        "workable.com",
+        "smartrecruiters.com",
+        "flexjobs.com",
+        "remoteok.com",
+        "weworkremotely.com",
+        "remotive.com",
+        "wellfound.com",
+        "jobs.",
+        "careers.",
+    )
     suspicious = ("bit.ly", "tinyurl", "t.me", "wa.me", "forms.gle", "docs.google.com/forms")
     return any(token in domain for token in trusted) and not any(token in domain for token in suspicious)
 
@@ -90,6 +111,10 @@ def country_matches(applicant_country: str, allowed: list[str]) -> bool:
 
 def score_legitimacy(text: str, extracted: ExtractedJob, red_flags: list[str], positive_signals: list[str]) -> int:
     score = 70
+
+    if any("search-results collection" in warning or "search, collection" in warning for warning in extracted.extraction_warnings):
+        score -= 12
+        add_unique(red_flags, "Input appears to be a search/listing page rather than one job posting")
 
     if extracted.company:
         score += 8
@@ -157,6 +182,8 @@ def score_legitimacy(text: str, extracted: ExtractedJob, red_flags: list[str], p
 def score_remote_authenticity(text: str, extracted: ExtractedJob, red_flags: list[str], positive_signals: list[str]) -> int:
     lower = text.lower()
     score = 55
+    optional_remote_choice = has_optional_remote_choice(text)
+    hard_hybrid_or_onsite = has_hard_hybrid_or_onsite_requirement(text)
 
     if "remote-first" in lower:
         score += 22
@@ -170,22 +197,25 @@ def score_remote_authenticity(text: str, extracted: ExtractedJob, red_flags: lis
     if extracted.timezone_requirements:
         score += 6
         add_unique(positive_signals, "Timezone expectations are stated")
+    if optional_remote_choice and not hard_hybrid_or_onsite:
+        score += 10
+        add_unique(positive_signals, "Remote work is listed as a flexible work option")
 
-    if "hybrid" in lower:
+    if "hybrid" in lower and hard_hybrid_or_onsite:
         score -= 30
         add_unique(red_flags, "Posting is hybrid, not fully remote")
-    if has_any(text, ["must commute", "commute", "onsite", "on-site"]):
+    if hard_hybrid_or_onsite and has_any(text, ["must commute", "commute", "onsite", "on-site"]):
         score -= 28
         add_unique(red_flags, "Onsite or commute requirement conflicts with remote claim")
     if "must be located in" in lower:
         score -= 10
         add_unique(red_flags, "Remote work is location-restricted")
-    if "remote but office required" in lower or "office required" in lower:
+    if hard_hybrid_or_onsite and ("remote but office required" in lower or "office required" in lower):
         score -= 25
         add_unique(red_flags, "Remote policy still requires office attendance")
 
     if not extracted.remote_type:
-        score -= 16
+        score -= 8
         add_unique(red_flags, "Remote policy is unclear")
 
     return clamp(score)
@@ -298,7 +328,7 @@ def build_explanation(scores: ScoreBreakdown, verdict: str, red_flags: list[str]
 def recommend_action(final_score: int) -> str:
     if final_score >= 80:
         return "Apply"
-    if final_score >= 60:
+    if final_score >= 45:
         return "Review carefully"
     return "Avoid"
 
@@ -379,6 +409,7 @@ def analyze_job_text(
         title_validation=title_validation,
         red_flags=red_flags,
         positive_signals=positive_signals,
+        extraction_warnings=list(extracted.extraction_warnings),
         explanation=build_explanation(scores, verdict, red_flags, positive_signals),
         recommended_action=recommend_action(final_score),
     )

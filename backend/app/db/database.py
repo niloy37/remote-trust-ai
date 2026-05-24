@@ -57,6 +57,7 @@ def init_db() -> None:
                 extracted_json TEXT NOT NULL,
                 red_flags_json TEXT NOT NULL,
                 positive_signals_json TEXT NOT NULL,
+                extraction_warnings_json TEXT,
                 explanation TEXT NOT NULL,
                 recommended_action TEXT NOT NULL,
                 created_at TEXT NOT NULL
@@ -72,6 +73,8 @@ def init_db() -> None:
             connection.execute("ALTER TABLE jobs ADD COLUMN graph_verification_json TEXT")
         if "classification_json" not in columns:
             connection.execute("ALTER TABLE jobs ADD COLUMN classification_json TEXT")
+        if "extraction_warnings_json" not in columns:
+            connection.execute("ALTER TABLE jobs ADD COLUMN extraction_warnings_json TEXT")
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS graph_nodes (
@@ -133,10 +136,10 @@ def insert_job(request: AnalyzeRequest, response: AnalyzeResponse) -> JobRecord:
                 final_score, verdict, legitimacy_score, remote_authenticity_score,
                 global_eligibility_score, job_quality_score, title_validation_json, company_verification_json,
                 graph_verification_json, classification_json, extracted_json,
-                red_flags_json, positive_signals_json, explanation,
+                red_flags_json, positive_signals_json, extraction_warnings_json, explanation,
                 recommended_action, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 response.job_id,
@@ -157,6 +160,7 @@ def insert_job(request: AnalyzeRequest, response: AnalyzeResponse) -> JobRecord:
                 response.extracted.model_dump_json(),
                 json.dumps(response.red_flags),
                 json.dumps(response.positive_signals),
+                json.dumps(response.extraction_warnings),
                 response.explanation,
                 response.recommended_action,
                 created_at,
@@ -172,6 +176,7 @@ def row_to_job(row: sqlite3.Row) -> JobRecord:
     company_verification_json = row["company_verification_json"] if "company_verification_json" in row.keys() else None
     graph_verification_json = row["graph_verification_json"] if "graph_verification_json" in row.keys() else None
     classification_json = row["classification_json"] if "classification_json" in row.keys() else None
+    extraction_warnings_json = row["extraction_warnings_json"] if "extraction_warnings_json" in row.keys() else None
     title_validation = (
         TitleValidation(**json.loads(title_validation_json))
         if title_validation_json
@@ -260,6 +265,7 @@ def row_to_job(row: sqlite3.Row) -> JobRecord:
         classification=classification,
         red_flags=json.loads(row["red_flags_json"]),
         positive_signals=json.loads(row["positive_signals_json"]),
+        extraction_warnings=json.loads(extraction_warnings_json) if extraction_warnings_json else [],
         explanation=row["explanation"],
         recommended_action=row["recommended_action"],
         created_at=row["created_at"],

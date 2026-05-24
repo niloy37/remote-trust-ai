@@ -6,9 +6,42 @@
 
   function sourceFromUrl(url) {
     const hostname = new URL(url).hostname.toLowerCase();
-    if (hostname.endsWith("linkedin.com")) return "linkedin";
-    if (hostname.endsWith("indeed.com")) return "indeed";
+    if (hostname.endsWith("linkedin.com")) return "LinkedIn";
+    if (hostname.endsWith("indeed.com")) return "Indeed";
+    if (hostname.endsWith("greenhouse.io")) return "Greenhouse";
+    if (hostname.endsWith("lever.co")) return "Lever";
+    if (hostname.endsWith("ashbyhq.com")) return "Ashby";
+    if (hostname.endsWith("workable.com")) return "Workable";
+    if (hostname.endsWith("smartrecruiters.com")) return "SmartRecruiters";
+    if (hostname.endsWith("flexjobs.com")) return "FlexJobs";
+    if (hostname.endsWith("remoteok.com")) return "RemoteOK";
+    if (hostname.endsWith("weworkremotely.com")) return "We Work Remotely";
+    if (hostname.endsWith("remotive.com")) return "Remotive";
+    if (hostname.endsWith("wellfound.com")) return "Wellfound";
     return null;
+  }
+
+  function isSearchOrListingPage(url) {
+    const parsed = new URL(url);
+    const lower = `${parsed.pathname}?${parsed.searchParams.toString()}`.toLowerCase();
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      lower.includes("/jobs/search") ||
+      lower.includes("/collections/") ||
+      lower.includes("/recommended/") ||
+      lower.includes("/results/") ||
+      lower.includes("/search") ||
+      lower.includes("search=") ||
+      lower.includes("q=") ||
+      lower.includes("/remote-jobs/search") ||
+      lower.includes("/categories/")
+    ) {
+      return true;
+    }
+    if (hostname.endsWith("flexjobs.com") && !/\/(?:remote-jobs|jobs)\/[^/?#]+/i.test(parsed.pathname)) return true;
+    if (hostname.endsWith("remoteok.com") && /^\/(?:remote-[^/?#]+-jobs)?\/?$/i.test(parsed.pathname)) return true;
+    if (hostname.endsWith("weworkremotely.com") && /^\/(?:categories|remote-jobs)?\/?$/i.test(parsed.pathname)) return true;
+    return false;
   }
 
   function normalizeText(value) {
@@ -103,6 +136,25 @@
       }
     }
     return null;
+  }
+
+  function extractGenericJobPage(sourceLabel = "Generic Portal") {
+    const jsonLd = extractJsonLdJob();
+    const title =
+      jsonLd.title ||
+      firstText(["h1", "h2", "[data-testid*='title' i]", "[class*='title' i]", "[itemprop='title']"]) ||
+      document.title;
+    const company =
+      jsonLd.company ||
+      getMetaContent(["og:site_name", "application-name"]) ||
+      firstText(["[data-testid*='company' i]", "[class*='company' i]", "[class*='organization' i]", "[class*='department' i]", "[itemprop='hiringOrganization']"]);
+    const location =
+      jsonLd.location ||
+      firstText(["[data-testid*='location' i]", "[class*='location' i]", "[class*='office' i]"]);
+    const bodyText = fallbackMainText();
+    const description = normalizeText([jsonLd.description, bodyText].filter(Boolean).join("\n\n"));
+
+    return { source: sourceLabel, title, company, location, description };
   }
 
   function extractJsonLdJob() {
@@ -270,8 +322,11 @@
 
   function fallbackMainText() {
     const clone = document.body.cloneNode(true);
-    clone.querySelectorAll("script, style, noscript, svg, nav, header, footer, aside, form, button").forEach((node) => node.remove());
+    clone.querySelectorAll("script, style, noscript, svg, nav, header, footer, aside, form, button, [class*='filter' i], [class*='search' i], [class*='newsletter' i], [class*='cookie' i]").forEach((node) => node.remove());
     const containers = [
+      clone.querySelector("[data-testid*='job' i]"),
+      clone.querySelector("[class*='job-detail' i]"),
+      clone.querySelector("[class*='job-post' i]"),
       clone.querySelector("main"),
       clone.querySelector("article"),
       clone.querySelector("[role='main']"),
@@ -432,16 +487,27 @@
     if (!source) {
       return {
         ok: false,
-        error: "RemoteTrust AI only reads job pages from LinkedIn and Indeed."
+        error: "Open an individual posting on a supported job site before running RemoteTrust AI."
+      };
+    }
+    if (isSearchOrListingPage(location.href)) {
+      return {
+        ok: false,
+        error: "This looks like a search or listing page. Open one individual job posting, then run RemoteTrust AI again."
       };
     }
 
-    const extracted = source === "linkedin" ? extractLinkedIn() : extractIndeed();
+    const extracted =
+      source === "LinkedIn" ? extractLinkedIn() :
+      source === "Indeed" ? extractIndeed() :
+      extractGenericJobPage(source);
     const jobText = buildJobText(extracted).slice(0, MAX_DESCRIPTION_LENGTH);
     if (!extracted.description || extracted.description.length < 120) {
       const hint = extracted.source === "LinkedIn"
         ? " On LinkedIn search/browse pages, click one job so the right-side job detail panel opens, then run the extension again."
-        : "";
+        : extracted.source === "Indeed"
+          ? ""
+          : " Open the individual job posting rather than a search or listing page, then run the extension again.";
       return {
         ok: false,
         error: `Could not find enough readable job description text on this ${extracted.source} page.${hint}`
@@ -458,6 +524,11 @@
       job_description: jobText
     };
   }
+
+  window.__REMOTE_TRUST_AI_TEST_HOOKS__ = {
+    sourceFromUrl,
+    isSearchOrListingPage
+  };
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "REMOTE_TRUST_EXTRACT_JOB") return false;

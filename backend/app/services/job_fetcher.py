@@ -6,12 +6,26 @@ import re
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 from urllib.request import Request, urlopen
+
+try:  # Installed in Docker; optional for local smoke tests.
+    import httpx
+except Exception:  # pragma: no cover
+    httpx = None
+
+try:
+    from bs4 import BeautifulSoup
+except Exception:  # pragma: no cover
+    BeautifulSoup = None
+
+from ml.feature_extractor import is_search_or_collection_url, provider_for_url, text_looks_like_search_collection
 
 
 PROTECTED_JOB_BOARDS = ("linkedin.com", "indeed.com")
 ATS_HINTS = ("greenhouse.io", "lever.co", "ashbyhq.com", "workable.com", "smartrecruiters.com")
+PORTAL_HINTS = ("flexjobs.com", "remoteok.com", "weworkremotely.com", "remotive.com", "wellfound.com")
+MAX_FETCH_BYTES = 1_200_000
 
 
 @dataclass
@@ -29,33 +43,66 @@ def domain_for(url: str) -> str:
     return urlparse(url).netloc.lower().removeprefix("www.")
 
 
+def normalize_url(url: str) -> str:
+    value = (url or "").strip()
+    if not value:
+        raise JobFetchError("Job URL is empty.")
+    if not re.match(r"^https?://", value, flags=re.IGNORECASE):
+        value = f"https://{value}"
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise JobFetchError("Provide a valid http or https job URL.")
+    return urlunparse((parsed.scheme, parsed.netloc, parsed.path or "/", "", parsed.query, ""))
+
+
 def looks_like_protected_board(url: str) -> bool:
     domain = domain_for(url)
     return any(board in domain for board in PROTECTED_JOB_BOARDS)
 
 
 def fetch_html(url: str) -> str:
+    normalized_url = normalize_url(url)
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 RemoteTrustAI/0.1"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.5",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+    if httpx:
+        try:
+            with httpx.Client(follow_redirects=True, timeout=10, headers=headers) as client:
+                response = client.get(normalized_url)
+                response.raise_for_status()
+                content_type = response.headers.get("content-type", "")
+                if "text/html" not in content_type and "text/plain" not in content_type and "application/xhtml" not in content_type:
+                    raise JobFetchError("The URL did not return readable HTML or plain text.")
+                return response.content[:MAX_FETCH_BYTES].decode(response.encoding or "utf-8", errors="ignore")
+        except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            if status_code in {401, 403, 429} and looks_like_protected_board(normalized_url):
+                raise JobFetchError(
+                    "This job board blocks automated crawling. Paste the job description, or use the browser extension path for pages that require login/session access."
+                ) from exc
+            raise JobFetchError(f"Could not fetch the job URL. HTTP {status_code}.") from exc
+        except httpx.RequestError as exc:
+            raise JobFetchError(f"Could not fetch the job URL. Paste the job description instead. Details: {exc}") from exc
+
     request = Request(
-        url,
-        headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/124.0 Safari/537.36 RemoteTrustAI/0.1"
-            ),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-        },
+        normalized_url,
+        headers=headers,
     )
     try:
         with urlopen(request, timeout=10) as response:
             content_type = response.headers.get("content-type", "")
             if "text/html" not in content_type and "text/plain" not in content_type:
                 raise JobFetchError("The URL did not return readable HTML or plain text.")
-            return response.read(1_000_000).decode("utf-8", errors="ignore")
+            return response.read(MAX_FETCH_BYTES).decode("utf-8", errors="ignore")
     except HTTPError as exc:
-        if exc.code in {401, 403, 429} and looks_like_protected_board(url):
+        if exc.code in {401, 403, 429} and looks_like_protected_board(normalized_url):
             raise JobFetchError(
-                "This job board blocks automated crawling. Paste the job description, or use the future browser extension path for pages that require login/session access."
+                "This job board blocks automated crawling. Paste the job description, or use the browser extension path for pages that require login/session access."
             ) from exc
         raise JobFetchError(f"Could not fetch the job URL. HTTP {exc.code}.") from exc
     except (URLError, TimeoutError) as exc:
@@ -80,12 +127,20 @@ def normalize_text(value: str) -> str:
 
 def json_ld_blocks(document: str) -> list[Any]:
     blocks: list[Any] = []
-    for match in re.finditer(
-        r"<script[^>]+type=[\"']application/ld\+json[\"'][^>]*>(.*?)</script>",
-        document,
-        flags=re.IGNORECASE | re.DOTALL,
-    ):
-        raw = html.unescape(match.group(1)).strip()
+    if BeautifulSoup:
+        soup = BeautifulSoup(document, "lxml")
+        raw_blocks = [script.get_text(" ", strip=True) for script in soup.find_all("script", attrs={"type": re.compile(r"ld\+json", re.I)})]
+    else:
+        raw_blocks = [
+            match.group(1)
+            for match in re.finditer(
+                r"<script[^>]+type=[\"']application/ld\+json[\"'][^>]*>(.*?)</script>",
+                document,
+                flags=re.IGNORECASE | re.DOTALL,
+            )
+        ]
+    for raw_block in raw_blocks:
+        raw = html.unescape(raw_block).strip()
         if not raw:
             continue
         try:
@@ -172,6 +227,17 @@ def extract_json_ld_job(document: str) -> str | None:
 
 def extract_meta_summary(document: str) -> str | None:
     pieces: list[str] = []
+    if BeautifulSoup:
+        soup = BeautifulSoup(document, "lxml")
+        for name in ("og:title", "twitter:title", "title", "description", "og:description", "twitter:description", "application-name"):
+            node = soup.find("meta", attrs={"property": name}) or soup.find("meta", attrs={"name": name})
+            content = strip_tags(node.get("content", "")) if node else ""
+            if content:
+                pieces.append(content)
+        if soup.title and soup.title.string:
+            pieces.append(strip_tags(soup.title.string))
+        return "\n".join(dict.fromkeys(pieces)) if pieces else None
+
     for name in ("og:title", "twitter:title", "title", "description", "og:description", "twitter:description"):
         pattern = rf"<meta[^>]+(?:name|property)=[\"']{re.escape(name)}[\"'][^>]+content=[\"']([^\"']+)[\"'][^>]*>"
         match = re.search(pattern, document, flags=re.IGNORECASE)
@@ -184,6 +250,36 @@ def extract_meta_summary(document: str) -> str | None:
 
 
 def extract_visible_text(document: str) -> str:
+    if BeautifulSoup:
+        soup = BeautifulSoup(document, "lxml")
+        for selector in [
+            "script",
+            "style",
+            "noscript",
+            "svg",
+            "header",
+            "footer",
+            "nav",
+            "aside",
+            "form",
+            "button",
+        ]:
+            for node in soup.select(selector):
+                node.decompose()
+        for node in soup.find_all(True):
+            marker = " ".join(
+                str(value).lower()
+                for value in [
+                    node.get("id", ""),
+                    " ".join(node.get("class", [])),
+                    node.get("aria-label", ""),
+                ]
+            )
+            if any(term in marker for term in ["cookie", "banner", "modal", "newsletter"]):
+                node.decompose()
+        root = soup.find("main") or soup.find("article") or soup.find(attrs={"role": "main"}) or soup.body or soup
+        return normalize_text(root.get_text("\n", strip=True))
+
     cleaned = re.sub(r"<(script|style|noscript|svg|header|footer|nav|aside)[^>]*>.*?</\1>", " ", document, flags=re.IGNORECASE | re.DOTALL)
     cleaned = re.sub(r"<!--.*?-->", " ", cleaned, flags=re.DOTALL)
     return normalize_text(strip_tags(cleaned))
@@ -204,27 +300,36 @@ def page_looks_blocked(text: str) -> bool:
 
 
 def fetch_job_description(url: str) -> FetchResult:
-    document = fetch_html(url)
+    normalized_url = normalize_url(url)
+    if is_search_or_collection_url(normalized_url):
+        raise JobFetchError("This URL appears to be a search, collection, or listing page. Open an individual job posting URL or paste one full job description.")
+
+    document = fetch_html(normalized_url)
     json_ld_text = extract_json_ld_job(document)
     visible_text = extract_visible_text(document)
     meta_text = extract_meta_summary(document)
 
-    candidates = [json_ld_text, visible_text, meta_text]
-    best = max((candidate for candidate in candidates if candidate), key=len, default="")
+    candidates = [visible_text, meta_text]
+    best = json_ld_text or max((candidate for candidate in candidates if candidate), key=len, default="")
     best = best[:30_000]
 
     if len(best) < 120 or page_looks_blocked(best):
-        if looks_like_protected_board(url):
+        if looks_like_protected_board(normalized_url):
             raise JobFetchError(
                 "This page did not expose enough public job text. LinkedIn and Indeed commonly hide content behind login, bot checks, or dynamic rendering. Paste the description for this MVP; a browser extension can read the page with the user's consent later."
             )
         raise JobFetchError("Fetched page did not contain enough readable job text. Paste the job description instead.")
 
-    source = "json-ld JobPosting" if json_ld_text and len(json_ld_text) >= len(visible_text) else "cleaned page text"
+    if text_looks_like_search_collection(best):
+        raise JobFetchError("Fetched page looks like search results rather than one job posting. Open an individual job posting URL or paste the full posting text.")
+
+    source = "json-ld JobPosting" if json_ld_text else "cleaned page text"
     warning = None
-    if looks_like_protected_board(url):
+    if looks_like_protected_board(normalized_url):
         warning = "This is a protected job board, so extraction may be incomplete."
-    elif not any(hint in domain_for(url) for hint in ATS_HINTS):
+    elif provider_for_url(normalized_url):
+        warning = None
+    elif not any(hint in domain_for(normalized_url) for hint in (*ATS_HINTS, *PORTAL_HINTS)):
         warning = "Generic page extraction was used; ATS career pages usually extract more accurately."
 
     return FetchResult(text=best, source=source, warning=warning)

@@ -26,6 +26,8 @@ export interface Scores {
 export interface ExtractedJob {
   job_title: string | null;
   company: string | null;
+  company_confidence: number | null;
+  company_evidence: string | null;
   salary: string | null;
   location: string | null;
   remote_type: string | null;
@@ -155,6 +157,7 @@ export interface AnalysisResponse {
   classification: JobClassification;
   red_flags: string[];
   positive_signals: string[];
+  extraction_warnings: string[];
   explanation: string;
   recommended_action: RecommendedAction;
 }
