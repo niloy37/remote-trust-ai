@@ -96,6 +96,25 @@ LINKEDIN_SEARCH_CHROME_MARKERS = [
     "similar jobs",
 ]
 
+GLOBAL_NOISE_PATTERNS = [
+    "privacy policy",
+    "cookie policy",
+    "terms of service",
+    "terms and conditions",
+    "sign in",
+    "log in",
+    "create account",
+    "join now",
+    "apply now",
+    "see more jobs",
+    "recommended jobs",
+    "all rights reserved",
+    "do not sell my personal information",
+    "by using this site",
+    "accept cookies",
+    "cookie preferences",
+]
+
 LINKEDIN_REMOTE_FILTER_PATTERN = re.compile(r"\b(?:on-site|onsite)\s+or\s+hybrid\s+or\s+remote\b", re.IGNORECASE)
 RESULT_COUNT_PATTERN = re.compile(r"\b\d+\+?\s+results?\b", re.IGNORECASE)
 
@@ -105,16 +124,20 @@ def normalize_text(text: str) -> str:
 
 
 def is_page_chrome_noise_line(line: str) -> bool:
+    
     normalized = normalize_text(line)
     lower = normalized.lower()
     if not lower:
         return True
     if any(marker in lower for marker in LINKEDIN_SEARCH_CHROME_MARKERS):
         return True
+    if any(pattern in lower for pattern in GLOBAL_NOISE_PATTERNS):
+        return True
     if RESULT_COUNT_PATTERN.search(lower) and ("job" in lower or "remote" in lower):
         return True
     if LINKEDIN_REMOTE_FILTER_PATTERN.search(lower) and ("results" in lower or "ranked" in lower):
         return True
+    
     return False
 
 
