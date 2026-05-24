@@ -28,6 +28,34 @@ class JobFetchError(ValueError):
 def domain_for(url: str) -> str:
     return urlparse(url).netloc.lower().removeprefix("www.")
 
+def infer_company_from_domain(url: str) -> str | None:
+
+    domain = domain_for(url)
+
+    ats_patterns = {
+        "greenhouse.io": lambda d, u: urlparse(u).path.split("/")[1],
+        "lever.co": lambda d, u: urlparse(u).path.split("/")[1],
+        "ashbyhq.com": lambda d, u: urlparse(u).path.split("/")[1],
+        "workable.com": lambda d, u: urlparse(u).path.split("/")[1],
+    }
+
+    for ats, extractor in ats_patterns.items():
+
+        if ats in domain:
+
+            try:
+
+                company = extractor(domain, url)
+
+                company = company.replace("-", " ")
+
+                return company.title()
+
+            except Exception:
+                return None
+
+    return None
+
 
 def looks_like_protected_board(url: str) -> bool:
     domain = domain_for(url)
@@ -205,12 +233,20 @@ def page_looks_blocked(text: str) -> bool:
 
 def fetch_job_description(url: str) -> FetchResult:
     document = fetch_html(url)
+
     json_ld_text = extract_json_ld_job(document)
+
     visible_text = extract_visible_text(document)
+
     meta_text = extract_meta_summary(document)
+
+    inferred_company = infer_company_from_domain(url)
 
     candidates = [json_ld_text, visible_text, meta_text]
     best = max((candidate for candidate in candidates if candidate), key=len, default="")
+    if inferred_company and "Company:" not in best:
+        best = f"Company: {inferred_company}\n" + best
+        
     best = best[:30_000]
 
     if len(best) < 120 or page_looks_blocked(best):
