@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { AlertTriangle, ShieldCheck, ShieldX } from "lucide-react";
+import { displayVerdict } from "@/lib/display";
 import type { Verdict } from "@/lib/types";
 
 interface VerdictBadgeProps {
@@ -20,7 +21,7 @@ export function VerdictBadge({ verdict, compact = false }: VerdictBadgeProps) {
       )}
     >
       <Icon size={compact ? 14 : 16} aria-hidden="true" />
-      {verdict}
+      {displayVerdict(verdict)}
     </span>
   );
 }

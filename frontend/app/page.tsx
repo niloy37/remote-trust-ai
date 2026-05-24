@@ -4,22 +4,22 @@ import { ArrowRight, BadgeCheck, Globe2, Radar, ShieldCheck, Sparkles } from "lu
 const pillars = [
   {
     title: "Legitimacy",
-    description: "Detects scam language, suspicious contacts, official hiring links, payment requests, and company signals.",
+    description: "Checks company identity, hiring links, contact details, and suspicious payment requests.",
     icon: ShieldCheck
   },
   {
     title: "Remote Authenticity",
-    description: "Separates fully remote jobs from hybrid, onsite, commute, and office-required postings.",
+    description: "Checks whether the role appears genuinely remote and office-free.",
     icon: Radar
   },
   {
     title: "Global Eligibility",
-    description: "Compares location restrictions and authorization requirements against the applicant country.",
+    description: "Checks country, timezone, and work authorization fit for the applicant.",
     icon: Globe2
   },
   {
     title: "Job Quality",
-    description: "Checks role clarity, salary transparency, skills, benefits, and interview process quality.",
+    description: "Checks role clarity, pay, skills, benefits, and hiring process details.",
     icon: Sparkles
   }
 ];
@@ -50,11 +50,12 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="mt-16 grid max-w-4xl gap-3 sm:grid-cols-3">
+          <div className="mt-16 grid max-w-4xl gap-3 sm:grid-cols-4">
             {[
-              ["40%", "Legitimacy weight"],
-              ["25%", "Remote authenticity"],
-              ["20%", "Global eligibility"]
+              ["40%", "Company trust"],
+              ["25%", "Remote clarity"],
+              ["20%", "Applicant fit"],
+              ["15%", "Job quality"]
             ].map(([value, label]) => (
               <div key={label} className="rounded-lg border border-line bg-ink/[0.48] p-4 backdrop-blur">
                 <div className="text-2xl font-black text-white">{value}</div>
@@ -68,7 +69,7 @@ export default function LandingPage() {
       <section id="pillars" className="px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-3xl">
-            <p className="label">Scoring pillars</p>
+            <p className="label">Checks</p>
             <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">Four checks before a global applicant spends hours applying.</h2>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -3,6 +3,7 @@
 import { ArrowRight, ClipboardPaste, Loader2, Link2, MapPin, Sparkles } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { analyzeJob } from "@/lib/api";
+import { friendlyErrorMessage } from "@/lib/display";
 import { COUNTRIES, SAMPLE_JOBS } from "@/lib/samples";
 import type { AnalysisResponse, AnalyzeRequest } from "@/lib/types";
 import { ResultsPanel } from "@/components/ResultsPanel";
@@ -39,7 +40,7 @@ export default function AnalyzerPage() {
       const analysis = await analyzeJob(payload);
       setResult(analysis);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong while analyzing the job.");
+      setError(friendlyErrorMessage(err, "We could not analyze this job right now. Please try again."));
     } finally {
       setIsLoading(false);
     }
@@ -85,7 +86,7 @@ export default function AnalyzerPage() {
                   <span className="flex items-center gap-2">
                   <Link2 size={16} aria-hidden="true" /> Job URL
                   </span>
-                  <span className="rounded-full border border-cyan/30 bg-cyan/[0.10] px-2.5 py-1 text-xs text-cyan">Crawler enabled</span>
+                  <span className="rounded-full border border-cyan/30 bg-cyan/[0.10] px-2.5 py-1 text-xs text-cyan">URL check</span>
                 </span>
                 <input
                   className="input-shell"
@@ -149,14 +150,14 @@ export default function AnalyzerPage() {
           </form>
 
           <aside className="surface rounded-lg p-6">
-            <p className="label">Live scoring model</p>
-            <h2 className="mt-3 text-2xl font-black text-white">Hybrid AI checks</h2>
+            <p className="label">Job review</p>
+            <h2 className="mt-3 text-2xl font-black text-white">What we check</h2>
             <div className="mt-6 space-y-4">
               {[
-                ["Rule-based scam detector", "Identifies payment requests, chat-only recruiters, no-interview pressure, and suspicious links."],
-                ["NLP-style extraction", "Pulls company, title, salary, location, remote type, country restrictions, and work authorization."],
-                ["Structured scoring engine", "Weights legitimacy, remote authenticity, global eligibility, and quality into a final trust score."],
-                ["Future model wrapper", "Baseline ML and transformer placeholders are included without requiring paid APIs."]
+                ["Company and link review", "Looks for official hiring links, suspicious contact methods, and payment requests."],
+                ["Remote clarity", "Checks whether the role is fully remote or has office, hybrid, timezone, or country limits."],
+                ["Applicant fit", "Compares location and authorization requirements with the selected applicant country."],
+                ["Job quality", "Looks for clear responsibilities, skills, pay, benefits, and hiring process details."]
               ].map(([title, body], index) => (
                 <div key={title} className="flex gap-4 rounded-lg border border-line bg-white/[0.04] p-4">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-cyan/[0.10] text-sm font-black text-cyan">{index + 1}</div>
@@ -173,7 +174,7 @@ export default function AnalyzerPage() {
         {isLoading ? (
           <div className="mt-8 surface rounded-lg p-8 text-center">
             <Loader2 className="mx-auto animate-spin text-mint" size={32} aria-hidden="true" />
-            <p className="mt-4 text-sm font-semibold text-slate-200">Extracting signals and calculating trust score...</p>
+            <p className="mt-4 text-sm font-semibold text-slate-200">Checking the job details and trust indicators...</p>
           </div>
         ) : null}
 

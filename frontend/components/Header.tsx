@@ -5,7 +5,7 @@ const navItems = [
   { href: "/analyze", label: "Analyze" },
   { href: "/opportunities", label: "Opportunities" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/#pillars", label: "Scoring" }
+  { href: "/#pillars", label: "Checks" }
 ];
 
 export function Header() {

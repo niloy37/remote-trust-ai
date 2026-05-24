@@ -1,4 +1,5 @@
 import type { JobRecord } from "@/lib/types";
+import { sanitizeUserText } from "@/lib/display";
 
 export type OpportunityBucket = "curated" | "review" | "rejected";
 export type EligibilityFilter = "All" | "Worldwide" | "Applicant match" | "Restricted" | "Unclear";
@@ -13,6 +14,14 @@ function textIncludesCountry(value: string, country: string) {
 
 function unique(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.map((value) => (value || "").trim()).filter(Boolean)));
+}
+
+function firstFriendly(values: Array<string | null | undefined>) {
+  for (const value of values) {
+    const cleaned = sanitizeUserText(value);
+    if (cleaned) return cleaned;
+  }
+  return null;
 }
 
 export function curationBucket(job: JobRecord): OpportunityBucket {
@@ -93,22 +102,21 @@ export function trustPassportSignal(job: JobRecord, bucket: OpportunityBucket) {
     if (label === "LIKELY_SCAM") return "the posting matches scam-like hiring patterns";
     if (job.recommended_action === "Avoid") return "the recommendation is to avoid this posting";
     if (job.verdict === "Risky" || job.final_score < 60) return "the trust score is below the safe shortlist threshold";
-    return job.red_flags[0] || job.classification?.evidence?.top_red_flags?.[0] || "Risk signals outweighed positive evidence";
+    return firstFriendly([job.red_flags[0], job.classification?.evidence?.top_red_flags?.[0]]) || "Risk signals outweighed positive evidence";
   }
   if (bucket === "review") {
     if (label === "COUNTRY_RESTRICTED_REMOTE") return "the role has country, authorization, or timezone restrictions";
     if (label === "LOW_QUALITY_UNVERIFIED") return "the posting needs stronger quality or verification evidence";
     return (
-      job.red_flags[0] ||
-      job.classification?.evidence?.remote_restrictions?.source_snippets?.[0] ||
-      job.classification?.evidence?.confidence_factors?.[0] ||
-      "Useful opportunity, but some evidence needs review"
+      firstFriendly([
+        job.red_flags[0],
+        job.classification?.evidence?.remote_restrictions?.source_snippets?.[0],
+        job.classification?.evidence?.confidence_factors?.[0]
+      ]) || "Useful opportunity, but some evidence needs review"
     );
   }
   return (
-    job.positive_signals[0] ||
-    job.company_verification.signals[0] ||
-    job.classification?.evidence?.positive_signals?.[0] ||
+    firstFriendly([job.positive_signals[0], job.company_verification.signals[0], job.classification?.evidence?.positive_signals?.[0]]) ||
     "Strong score across trust, remote, eligibility, and quality checks"
   );
 }

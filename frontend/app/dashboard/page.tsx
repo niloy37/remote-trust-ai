@@ -5,6 +5,7 @@ import { CalendarDays, ExternalLink, Filter, Loader2, RefreshCw, Search, Sparkle
 import { useEffect, useMemo, useState } from "react";
 import { getJobs } from "@/lib/api";
 import { applyLinkFor } from "@/lib/apply-link";
+import { displayVerdict, friendlyErrorMessage } from "@/lib/display";
 import { COUNTRIES } from "@/lib/samples";
 import type { JobRecord, Verdict } from "@/lib/types";
 import { ScoreRing } from "@/components/ScoreRing";
@@ -38,7 +39,7 @@ export default function DashboardPage() {
     try {
       setJobs(await getJobs());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load dashboard.");
+      setError(friendlyErrorMessage(err, "We could not load the dashboard right now. Please try again."));
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +69,7 @@ export default function DashboardPage() {
           <div>
             <p className="label">Dashboard</p>
             <h1 className="mt-3 text-3xl font-black text-white sm:text-4xl">Analyzed remote jobs</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">Review previous analyses, filter by verdict and applicant country, and open the full explanation.</p>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">Review previous analyses, filter by result and applicant country, and open the full explanation.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link href="/opportunities" className="btn-primary">
@@ -91,7 +92,7 @@ export default function DashboardPage() {
           </div>
           <div className="surface rounded-lg p-5">
             <div className="text-sm text-slate-400">Average score</div>
-            <div className="mt-2 text-3xl font-black text-cyan">{averageScore || "—"}</div>
+            <div className="mt-2 text-3xl font-black text-cyan">{averageScore || "N/A"}</div>
           </div>
         </div>
 
@@ -106,7 +107,7 @@ export default function DashboardPage() {
               <select className="input-shell pl-10" value={verdict} onChange={(event) => setVerdict(event.target.value as "All" | Verdict)}>
                 {verdicts.map((item) => (
                   <option key={item} value={item} className="bg-ink">
-                    {item}
+                    {item === "All" ? "All" : displayVerdict(item)}
                   </option>
                 ))}
               </select>
@@ -157,10 +158,10 @@ export default function DashboardPage() {
                       {job.extracted.remote_type || "Remote unclear"}
                     </span>
                     <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${titleBadgeClass(job.title_validation.verdict)}`}>
-                      Title: {job.title_validation.verdict}
+                      Role title: {job.title_validation.verdict}
                     </span>
                     <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${companyBadgeClass(job.company_verification.status)}`}>
-                      Web: {job.company_verification.status}
+                      Company: {job.company_verification.status}
                     </span>
                   </div>
                   <h2 className="mt-3 text-xl font-bold text-white">{job.extracted.job_title || "Untitled role"}</h2>

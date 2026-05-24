@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { getOpportunities, queueIngestionUrl, runIngestion } from "@/lib/api";
 import { applyLinkFor } from "@/lib/apply-link";
+import { friendlyErrorMessage } from "@/lib/display";
 import { COUNTRIES } from "@/lib/samples";
 import type { JobRecord, OpportunityFeedSummary } from "@/lib/types";
 import {
@@ -27,7 +28,7 @@ import { VerdictBadge } from "@/components/VerdictBadge";
 const buckets: Array<{ key: OpportunityBucket; label: string; icon: LucideIcon }> = [
   { key: "curated", label: "Curated", icon: BadgeCheck },
   { key: "review", label: "Review", icon: AlertTriangle },
-  { key: "rejected", label: "Not recommended", icon: XCircle }
+  { key: "rejected", label: "Skip", icon: XCircle }
 ];
 
 const scoreFilters: ScoreFilter[] = ["All", "80+", "60-79", "<60"];
@@ -44,6 +45,14 @@ function actionTone(action: string) {
   if (action === "Apply") return "border-mint/35 bg-mint/[0.10] text-mint";
   if (action === "Avoid") return "border-rose/35 bg-rose/[0.10] text-rose";
   return "border-amber/35 bg-amber/[0.10] text-amber";
+}
+
+function feedStatusLabel(status: string | undefined) {
+  if (!status || status === "not_run") return "Not refreshed yet";
+  if (status === "running") return "Refreshing";
+  if (status === "completed" || status === "success") return "Ready";
+  if (status === "failed" || status === "error") return "Needs attention";
+  return status.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function displayRemoteType(job: JobRecord) {
@@ -90,7 +99,7 @@ function OpportunityCard({ job, bucket }: { job: JobRecord; bucket: OpportunityB
             </span>
             <VerdictBadge verdict={job.verdict} compact />
             <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${actionTone(job.recommended_action)}`}>
-              {job.recommended_action}
+              Recommendation: {job.recommended_action}
             </span>
           </div>
 
@@ -168,7 +177,7 @@ export default function OpportunitiesPage() {
       setJobs(feed.jobs);
       setSummary(feed.summary);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load curated opportunities.");
+      setError(friendlyErrorMessage(err, "We could not load opportunities right now. Please try again."));
     } finally {
       setIsLoading(false);
     }
@@ -180,10 +189,10 @@ export default function OpportunitiesPage() {
     setNotice("");
     try {
       const result = await runIngestion();
-      setNotice(`Processed ${result.source_records_collected} collected jobs, published ${result.gold_records_published} new opportunities.`);
+      setNotice(`Reviewed ${result.source_records_collected} jobs and added ${result.gold_records_published} new opportunities.`);
       await loadJobs();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not process the ingestion feed.");
+      setError(friendlyErrorMessage(err, "We could not refresh the opportunity feed right now. Please try again."));
     } finally {
       setIsProcessing(false);
     }
@@ -202,10 +211,10 @@ export default function OpportunitiesPage() {
         applicant_country: queueCountry,
         desired_role: queueRole.trim() || null
       });
-      setNotice(`${response.message} ${response.queued_count} queued URL${response.queued_count === 1 ? "" : "s"} waiting.`);
+      setNotice(`Added ${response.queued_count} job URL${response.queued_count === 1 ? "" : "s"} for review.`);
       setQueueUrl("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not queue that URL.");
+      setError(friendlyErrorMessage(err, "We could not add that job URL right now. Please try again."));
     } finally {
       setIsQueueing(false);
     }
@@ -256,12 +265,12 @@ export default function OpportunitiesPage() {
           <div>
             <p className="label">Curated Opportunities</p>
             <h1 className="mt-3 text-3xl font-black text-white sm:text-4xl">Vetted remote jobs worth a closer look</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">A near-real-time lakehouse feed that collects, preprocesses, dedupes, and publishes verified remote opportunities.</p>
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">A refreshed shortlist of remote jobs that passed the same trust, remote, eligibility, and quality checks.</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <button className="btn-primary" onClick={() => void processFeed()} disabled={isProcessing}>
               {isProcessing ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Play size={16} aria-hidden="true" />}
-              Collect now
+              Refresh feed
             </button>
             <button className="btn-secondary" onClick={() => void loadJobs()} disabled={isLoading}>
               <RefreshCw size={16} aria-hidden="true" /> Refresh
@@ -275,7 +284,7 @@ export default function OpportunitiesPage() {
             <div className="mt-2 text-3xl font-black text-white">{summary?.jobs_collected || jobs.length}</div>
           </div>
           <div className="surface rounded-lg p-5">
-            <div className="text-sm text-slate-400">Jobs deduped</div>
+            <div className="text-sm text-slate-400">Duplicates checked</div>
             <div className="mt-2 text-3xl font-black text-cyan">{summary?.jobs_deduped || jobs.length}</div>
           </div>
           <div className="surface rounded-lg p-5">
@@ -297,17 +306,17 @@ export default function OpportunitiesPage() {
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-300">
               <span className="inline-flex items-center gap-2 rounded-full border border-line bg-white/[0.05] px-3 py-1.5">
                 <Database size={15} aria-hidden="true" />
-                {summary?.ingestion_status || "not_run"}
+                Feed: {feedStatusLabel(summary?.ingestion_status)}
               </span>
               <span className="rounded-full border border-line bg-white/[0.05] px-3 py-1.5">
-                Scheduler: {summary?.scheduler_enabled ? "on" : "off"}
+                Auto updates: {summary?.scheduler_enabled ? "On" : "Off"}
               </span>
               <span className="rounded-full border border-line bg-white/[0.05] px-3 py-1.5">
-                Last run: {summary?.last_run_at ? new Date(summary.last_run_at).toLocaleString() : "Not yet"}
+                Last refreshed: {summary?.last_run_at ? new Date(summary.last_run_at).toLocaleString() : "Not yet"}
               </span>
             </div>
             <form onSubmit={queueUrlForIngestion} className="grid gap-3 xl:grid-cols-[minmax(240px,1fr)_150px_180px_auto]">
-              <input className="input-shell" placeholder="Queue a job URL" value={queueUrl} onChange={(event) => setQueueUrl(event.target.value)} />
+              <input className="input-shell" placeholder="Add a job URL" value={queueUrl} onChange={(event) => setQueueUrl(event.target.value)} />
               <select className="input-shell" value={queueCountry} onChange={(event) => setQueueCountry(event.target.value)}>
                 {COUNTRIES.map((item) => (
                   <option key={item} value={item} className="bg-ink">{item}</option>
@@ -316,7 +325,7 @@ export default function OpportunitiesPage() {
               <input className="input-shell" placeholder="Role optional" value={queueRole} onChange={(event) => setQueueRole(event.target.value)} />
               <button className="btn-secondary" disabled={isQueueing || !queueUrl.trim()} type="submit">
                 {isQueueing ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Send size={16} aria-hidden="true" />}
-                Queue
+                Add
               </button>
             </form>
           </div>
