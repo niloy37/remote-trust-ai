@@ -19,8 +19,11 @@ try:
 except Exception:  # pragma: no cover
     BeautifulSoup = None
 
-from backend.ml.feature_extractor import is_search_or_collection_url, provider_for_url, text_looks_like_search_collection
-
+from ml.feature_extractor import (
+    is_search_or_collection_url,
+    provider_for_url,
+    text_looks_like_search_collection,
+)
 
 PROTECTED_JOB_BOARDS = ("linkedin.com", "indeed.com")
 ATS_HINTS = ("greenhouse.io", "lever.co", "ashbyhq.com", "workable.com", "smartrecruiters.com")
