@@ -38,12 +38,28 @@ def trust_score(scores: Scores) -> int:
 
 
 def verdict_for(final_score: int) -> str:
-    return "Verified" if final_score >= 80 else "Caution" if final_score >= 60 else "Risky"
+
+    if final_score >= 80:
+        return "Verified"
+
+    if final_score >= 60:
+        return "Caution"
+
+    if final_score >= 40:
+        return "Risky"
+
+    return "Risky"
 
 
 def recommended_action_for(final_score: int) -> str:
-    return "Apply" if final_score >= 80 else "Review carefully" if final_score >= 60 else "Avoid"
 
+    if final_score >= 80:
+        return "Apply"
+
+    if final_score >= 40:
+        return "Review carefully"
+
+    return "Avoid"
 
 def apply_graph_adjustments(scores: Scores, graph_verification: GraphVerification, had_existing_red_flags: bool) -> Scores:
     if graph_verification.status == "Strong graph evidence":
