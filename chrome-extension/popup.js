@@ -6,7 +6,12 @@ const SUPPORTED_HOSTS = [
   "lever.co",
   "ashbyhq.com",
   "workable.com",
-  "smartrecruiters.com"
+  "smartrecruiters.com",
+  "flexjobs.com",
+  "remoteok.com",
+  "weworkremotely.com",
+  "remotive.com",
+  "wellfound.com"
 ];
 
 const els = {
@@ -243,7 +248,13 @@ function isSearchPage(url) {
     lower.includes("/jobs/search") ||
     lower.includes("/collections/") ||
     lower.includes("/recommended/") ||
-    lower.includes("/results/")
+    lower.includes("/results/") ||
+    lower.includes("/search") ||
+    lower.includes("?search=") ||
+    lower.includes("?q=") ||
+    lower.includes("&q=") ||
+    lower.includes("/remote-jobs/search") ||
+    lower.includes("/categories/")
   );
 }
 

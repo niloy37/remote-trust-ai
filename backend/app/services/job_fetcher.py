@@ -19,9 +19,12 @@ try:
 except Exception:  # pragma: no cover
     BeautifulSoup = None
 
+from ml.feature_extractor import is_search_or_collection_url, provider_for_url, text_looks_like_search_collection
+
 
 PROTECTED_JOB_BOARDS = ("linkedin.com", "indeed.com")
 ATS_HINTS = ("greenhouse.io", "lever.co", "ashbyhq.com", "workable.com", "smartrecruiters.com")
+PORTAL_HINTS = ("flexjobs.com", "remoteok.com", "weworkremotely.com", "remotive.com", "wellfound.com")
 MAX_FETCH_BYTES = 1_200_000
 
 
@@ -298,6 +301,9 @@ def page_looks_blocked(text: str) -> bool:
 
 def fetch_job_description(url: str) -> FetchResult:
     normalized_url = normalize_url(url)
+    if is_search_or_collection_url(normalized_url):
+        raise JobFetchError("This URL appears to be a search, collection, or listing page. Open an individual job posting URL or paste one full job description.")
+
     document = fetch_html(normalized_url)
     json_ld_text = extract_json_ld_job(document)
     visible_text = extract_visible_text(document)
@@ -314,11 +320,16 @@ def fetch_job_description(url: str) -> FetchResult:
             )
         raise JobFetchError("Fetched page did not contain enough readable job text. Paste the job description instead.")
 
+    if text_looks_like_search_collection(best):
+        raise JobFetchError("Fetched page looks like search results rather than one job posting. Open an individual job posting URL or paste the full posting text.")
+
     source = "json-ld JobPosting" if json_ld_text else "cleaned page text"
     warning = None
     if looks_like_protected_board(normalized_url):
         warning = "This is a protected job board, so extraction may be incomplete."
-    elif not any(hint in domain_for(normalized_url) for hint in ATS_HINTS):
+    elif provider_for_url(normalized_url):
+        warning = None
+    elif not any(hint in domain_for(normalized_url) for hint in (*ATS_HINTS, *PORTAL_HINTS)):
         warning = "Generic page extraction was used; ATS career pages usually extract more accurately."
 
     return FetchResult(text=best, source=source, warning=warning)

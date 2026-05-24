@@ -70,6 +70,7 @@ def test_classifies_hybrid_or_location_bound() -> None:
     )
 
     assert result.classification.label == "HYBRID_OR_LOCATION_BOUND"
+    assert result.recommended_action == "Review carefully"
     assert result.classification.evidence.remote_restrictions.onsite_or_hybrid_requirement
 
 
@@ -125,7 +126,22 @@ def test_classifies_likely_scam_and_fallback_layers() -> None:
     )
 
     assert result.classification.label == "LIKELY_SCAM"
+    assert result.recommended_action == "Avoid"
     assert result.classification.layer_scores["transformer"].status == "unavailable"
     assert result.classification.layer_scores["structured_ml"].status == "unavailable"
     assert result.classification.status == "fallback"
     assert result.classification.fallback_reason
+
+
+def test_unclear_remote_policy_stays_caution_level() -> None:
+    result = analyze_text(
+        """
+        Company: ExampleCloud
+        Job title: Backend Engineer
+        Flexible work. You will build APIs and collaborate with product teams.
+        Required skills: Python, SQL.
+        """
+    )
+
+    assert result.scores.remote_authenticity >= 45
+    assert result.recommended_action == "Review carefully"

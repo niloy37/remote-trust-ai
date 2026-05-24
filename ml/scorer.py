@@ -34,7 +34,20 @@ def is_official_apply_url(url: str | None) -> bool:
     if not url:
         return False
     domain = urlparse(url).netloc.lower()
-    trusted = ("greenhouse.io", "lever.co", "ashbyhq.com", "workable.com", "smartrecruiters.com", "jobs.", "careers.")
+    trusted = (
+        "greenhouse.io",
+        "lever.co",
+        "ashbyhq.com",
+        "workable.com",
+        "smartrecruiters.com",
+        "flexjobs.com",
+        "remoteok.com",
+        "weworkremotely.com",
+        "remotive.com",
+        "wellfound.com",
+        "jobs.",
+        "careers.",
+    )
     suspicious = ("bit.ly", "tinyurl", "t.me", "wa.me", "forms.gle", "docs.google.com/forms")
     return any(token in domain for token in trusted) and not any(token in domain for token in suspicious)
 
@@ -98,6 +111,10 @@ def country_matches(applicant_country: str, allowed: list[str]) -> bool:
 
 def score_legitimacy(text: str, extracted: ExtractedJob, red_flags: list[str], positive_signals: list[str]) -> int:
     score = 70
+
+    if any("search-results collection" in warning or "search, collection" in warning for warning in extracted.extraction_warnings):
+        score -= 12
+        add_unique(red_flags, "Input appears to be a search/listing page rather than one job posting")
 
     if extracted.company:
         score += 8
@@ -198,7 +215,7 @@ def score_remote_authenticity(text: str, extracted: ExtractedJob, red_flags: lis
         add_unique(red_flags, "Remote policy still requires office attendance")
 
     if not extracted.remote_type:
-        score -= 16
+        score -= 8
         add_unique(red_flags, "Remote policy is unclear")
 
     return clamp(score)
@@ -311,7 +328,7 @@ def build_explanation(scores: ScoreBreakdown, verdict: str, red_flags: list[str]
 def recommend_action(final_score: int) -> str:
     if final_score >= 80:
         return "Apply"
-    if final_score >= 60:
+    if final_score >= 45:
         return "Review carefully"
     return "Avoid"
 

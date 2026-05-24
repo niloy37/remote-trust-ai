@@ -41,8 +41,32 @@ def verdict_for(final_score: int) -> str:
     return "Verified" if final_score >= 80 else "Caution" if final_score >= 60 else "Risky"
 
 
-def recommended_action_for(final_score: int) -> str:
-    return "Apply" if final_score >= 80 else "Review carefully" if final_score >= 60 else "Avoid"
+def recommended_action_for(
+    final_score: int,
+    classification_label: str | None = None,
+    red_flags: list[str] | None = None,
+    company_verification: CompanyVerification | None = None,
+    graph_verification: GraphVerification | None = None,
+) -> str:
+    red_text = " ".join(red_flags or []).lower()
+    severe_risk = (
+        classification_label == "LIKELY_SCAM"
+        or final_score < 45
+        or "payment request" in red_text
+        or "gift card" in red_text
+        or "wire transfer" in red_text
+        or "suspicious personal recruiter contact" in red_text
+        or company_verification is not None
+        and company_verification.status == "Risk signals"
+        or graph_verification is not None
+        and graph_verification.status == "Risk signals"
+        and final_score < 55
+    )
+    if severe_risk:
+        return "Avoid"
+    if final_score >= 80 and classification_label == "LEGIT_REMOTE":
+        return "Apply"
+    return "Review carefully"
 
 
 def apply_graph_adjustments(scores: Scores, graph_verification: GraphVerification, had_existing_red_flags: bool) -> Scores:
@@ -184,7 +208,6 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     ):
         final_score = 60
     verdict = verdict_for(final_score)
-    recommended_action = recommended_action_for(final_score)
     classification = classify_job(
         job_description=analysis_description,
         extracted=result.extracted,
@@ -193,6 +216,13 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
         positive_signals=result.positive_signals,
         company_verification_score=company_verification.score,
         graph_verification=graph_verification,
+    )
+    recommended_action = recommended_action_for(
+        final_score,
+        classification.label,
+        result.red_flags,
+        company_verification,
+        graph_verification,
     )
 
     return AnalyzeResponse(

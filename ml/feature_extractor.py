@@ -132,6 +132,41 @@ ATS_PROVIDERS = {
     "smartrecruiters.com": "SmartRecruiters",
 }
 
+PORTAL_PROVIDERS = {
+    "flexjobs.com": "FlexJobs",
+    "remoteok.com": "RemoteOK",
+    "weworkremotely.com": "We Work Remotely",
+    "remotive.com": "Remotive",
+    "wellfound.com": "Wellfound",
+}
+
+SUPPORTED_JOB_DOMAINS = {**ATS_PROVIDERS, **PORTAL_PROVIDERS}
+
+SEARCH_URL_PATTERN = re.compile(
+    r"/(?:search|jobs/search|remote-jobs/search|collections?|recommended|results?|browse|categories?)(?:/|$)|"
+    r"[?&](?:q|query|search|keyword|keywords|location|category|page)=",
+    re.IGNORECASE,
+)
+
+SEARCH_TEXT_MARKERS = [
+    "search results",
+    "remote jobs found",
+    "jobs found",
+    "save search",
+    "recommended jobs",
+    "job alert",
+    "filter by",
+    "sort by",
+    "page 1 of",
+    "sign in to view job details",
+    "open jobs",
+]
+
+LIST_ITEM_TITLE_PATTERN = re.compile(
+    r"(?im)^\s*(?:remote\s+)?[A-Z][A-Za-z0-9 /&,+.'-]{2,80}\s+[-|]\s+"
+    r"[A-Z][A-Za-z0-9&.'-]{2,}(?:\s+[A-Z][A-Za-z0-9&.'-]{2,}){0,4}\s*$"
+)
+
 COMPANY_REJECTION_PHRASES = {
     "software, happy customers",
     "building deep",
@@ -187,6 +222,8 @@ def is_page_chrome_noise_line(line: str) -> bool:
         return True
     if any(marker in lower for marker in LINKEDIN_SEARCH_CHROME_MARKERS):
         return True
+    if any(marker in lower for marker in ["save search", "filter by", "sort by", "job alert", "page 1 of", "sign in to view job details"]):
+        return True
     if RESULT_COUNT_PATTERN.search(lower) and ("job" in lower or "remote" in lower):
         return True
     if LINKEDIN_REMOTE_FILTER_PATTERN.search(lower) and ("results" in lower or "ranked" in lower):
@@ -198,6 +235,64 @@ def clean_job_text(text: str) -> str:
     lines = re.split(r"[\r\n]+", text or "")
     cleaned_lines = [line for line in lines if not is_page_chrome_noise_line(line)]
     return "\n".join(cleaned_lines).strip()
+
+
+def domain_for_url(url: str | None) -> str:
+    if not url:
+        return ""
+    parsed = urlparse(url if re.match(r"^[a-z]+://", url, re.IGNORECASE) else f"https://{url}")
+    return parsed.netloc.lower().removeprefix("www.")
+
+
+def provider_for_url(url: str | None) -> str | None:
+    domain = domain_for_url(url)
+    if not domain:
+        return None
+    for provider_domain, provider in SUPPORTED_JOB_DOMAINS.items():
+        if domain == provider_domain or domain.endswith(f".{provider_domain}"):
+            return provider
+    return None
+
+
+def is_search_or_collection_url(url: str | None) -> bool:
+    if not url:
+        return False
+    parsed = urlparse(url if re.match(r"^[a-z]+://", url, re.IGNORECASE) else f"https://{url}")
+    combined = f"{parsed.path}?{parsed.query}".lower()
+    domain = parsed.netloc.lower()
+    if SEARCH_URL_PATTERN.search(combined):
+        return True
+    if "flexjobs.com" in domain and not re.search(r"/(?:remote-jobs|jobs)/[^/?#]+", parsed.path, flags=re.IGNORECASE):
+        return True
+    if "weworkremotely.com" in domain and re.search(r"^/(?:categories|remote-jobs)?/?$", parsed.path or "/", flags=re.IGNORECASE):
+        return True
+    if "remoteok.com" in domain and re.search(r"^/(?:remote-[^/?#]+-jobs)?/?$", parsed.path or "/", flags=re.IGNORECASE):
+        return True
+    return False
+
+
+def text_looks_like_search_collection(text: str) -> bool:
+    cleaned = clean_job_text(text)
+    if not cleaned:
+        return False
+    lower = cleaned.lower()
+    marker_hits = sum(1 for marker in SEARCH_TEXT_MARKERS if marker in lower)
+    list_item_hits = len(LIST_ITEM_TITLE_PATTERN.findall(cleaned))
+    result_count_hit = bool(RESULT_COUNT_PATTERN.search(lower))
+    if marker_hits >= 2 and (list_item_hits >= 2 or result_count_hit):
+        return True
+    if list_item_hits >= 3 and any(marker in lower for marker in ["search", "recommended", "save", "filter"]):
+        return True
+    return False
+
+
+def page_quality_warnings(text: str, job_url: str | None = None) -> list[str]:
+    warnings: list[str] = []
+    if is_search_or_collection_url(job_url):
+        warnings.append("This URL appears to be a search, collection, or listing page. Open one individual job posting for reliable extraction.")
+    if text_looks_like_search_collection(text):
+        warnings.append("Input looks like a search-results collection, so company and title extraction were limited to avoid guessing from job cards.")
+    return warnings
 
 
 def has_optional_remote_choice(text: str) -> bool:
@@ -404,14 +499,12 @@ def title_company_patterns(text: str) -> list[tuple[str | None, str | None, str]
 def company_from_ats_url(job_url: str | None) -> tuple[str | None, str | None]:
     if not job_url:
         return None, None
+    if is_search_or_collection_url(job_url):
+        return None, None
     parsed = urlparse(job_url if re.match(r"^[a-z]+://", job_url, re.IGNORECASE) else f"https://{job_url}")
     domain = parsed.netloc.lower().removeprefix("www.")
     path_parts = [unquote(part) for part in parsed.path.split("/") if part]
-    provider = None
-    for ats_domain, label in ATS_PROVIDERS.items():
-        if domain == ats_domain or domain.endswith(f".{ats_domain}") or ats_domain in domain:
-            provider = label
-            break
+    provider = provider_for_url(job_url)
     if not provider:
         return None, None
 
@@ -420,9 +513,15 @@ def company_from_ats_url(job_url: str | None) -> tuple[str | None, str | None]:
         slug_value = path_parts[0]
     elif provider in {"Lever", "Ashby", "Workable", "SmartRecruiters"} and path_parts:
         slug_value = path_parts[0]
+    elif provider == "Wellfound" and len(path_parts) >= 2 and path_parts[0] in {"company", "companies"}:
+        slug_value = path_parts[1]
+    elif provider == "FlexJobs" and "company" in path_parts:
+        index = path_parts.index("company")
+        if len(path_parts) > index + 1:
+            slug_value = path_parts[index + 1]
     if not slug_value:
         subdomain = domain.split(".")[0]
-        if subdomain not in {"jobs", "boards", "apply", "job-boards"}:
+        if provider in ATS_PROVIDERS.values() and subdomain not in {"jobs", "boards", "apply", "job-boards"}:
             slug_value = subdomain
     if not slug_value:
         return None, None
@@ -438,6 +537,7 @@ def company_from_ats_url(job_url: str | None) -> tuple[str | None, str | None]:
 
 def collect_company_candidates(text: str, job_url: str | None = None) -> list[CompanyCandidate]:
     candidates: list[CompanyCandidate] = []
+    search_collection = text_looks_like_search_collection(text) or is_search_or_collection_url(job_url)
 
     for block in json_ld_blocks_from_text(text):
         for node in iter_json_nodes(block):
@@ -459,26 +559,29 @@ def collect_company_candidates(text: str, job_url: str | None = None) -> list[Co
     if ats_company and ats_evidence:
         candidates.append(CompanyCandidate(ats_company, 0.78, ats_evidence, 75))
 
-    for _, company, evidence in title_company_patterns(text):
-        if company:
-            candidates.append(CompanyCandidate(company, 0.84, evidence, 80))
+    if not search_collection:
+        for _, company, evidence in title_company_patterns(text):
+            if company:
+                candidates.append(CompanyCandidate(company, 0.84, evidence, 80))
 
     for meta_name in ("og:site_name", "application-name"):
         pattern = rf"<meta[^>]+(?:name|property)=[\"']{re.escape(meta_name)}[\"'][^>]+content=[\"']([^\"']+)[\"'][^>]*>"
         for match in re.finditer(pattern, text, flags=re.IGNORECASE):
             candidates.append(CompanyCandidate(match.group(1), 0.74, f"page metadata {meta_name}", 65))
 
-    for match in re.finditer(
-        r"(?im)^\s*(?:why|about)\s+(?!the\b|this\b|our\b)([A-Z][A-Za-z0-9&.'\- ]{1,60})\??\s*$",
-        text,
-    ):
-        candidates.append(CompanyCandidate(match.group(1), 0.72, "section heading", 70))
+    if not search_collection:
+        for match in re.finditer(
+            r"(?im)^\s*(?:why|about)\s+(?!the\b|this\b|our\b)([A-Z][A-Za-z0-9&.'\- ]{1,60})\??\s*$",
+            text,
+        ):
+            candidates.append(CompanyCandidate(match.group(1), 0.72, "section heading", 70))
 
-    for match in re.finditer(
-        r"\b(?:join|at|with)\b\s+([A-Z][A-Za-z0-9&.'\- ]{1,60})(?=\s+(?:as|to|for|and|who|is|we)\b|[,.\n\r])",
-        text,
-    ):
-        candidates.append(CompanyCandidate(match.group(1), 0.58, "bounded text heuristic", 45))
+    if not search_collection:
+        for match in re.finditer(
+            r"\b(?:join|at|with)\b\s+([A-Z][A-Za-z0-9&.'\- ]{1,60})(?=\s+(?:as|to|for|and|who|is|we)\b|[,.\n\r])",
+            text,
+        ):
+            candidates.append(CompanyCandidate(match.group(1), 0.58, "bounded text heuristic", 45))
 
     return candidates
 
@@ -551,17 +654,22 @@ def extract_job_title(text: str) -> str | None:
     if json_ld_title:
         return json_ld_title
 
-    for title, _, _ in title_company_patterns(text):
-        if title:
-            return title[:100]
+    search_collection = text_looks_like_search_collection(text)
+    if not search_collection:
+        for title, _, _ in title_company_patterns(text):
+            if title:
+                return title[:100]
 
-    patterns = [
-        r"(?:job title|role|position)\s*[:\-]\s*([^\n\r]+)",
-        r"we(?:'re| are)\s+hiring\s+(?:a|an)?\s*([A-Z][A-Za-z0-9 /\-+]{3,80})",
-        r"we\s+are\s+seeking\s+(?:an|a)?\s*([A-Z][A-Za-z0-9 /\-&+]{3,80}?)(?:\s+who\b|\s+to\b|\.|\n)",
-        r"successful candidate will(?:\s+be)?\s+(?:an|a)?\s*([A-Z][A-Za-z0-9 /\-&+]{3,80}?)(?:\s+who\b|\s+with\b|\.|\n)",
-        r"\b((?:(?:Senior|Staff|Principal|Lead|Junior)\s+)?(?:Software Engineer|Full Stack Engineer|Frontend Engineer|Backend Engineer|Data Analyst|Product Manager|Customer Success Manager|Sales Representative))\b",
-    ]
+    patterns = [r"(?:job title|role|position)\s*[:\-]\s*([^\n\r]+)"]
+    if not search_collection:
+        patterns.extend(
+            [
+                r"we(?:'re| are)\s+hiring\s+(?:a|an)?\s*([A-Z][A-Za-z0-9 /\-+]{3,80})",
+                r"we\s+are\s+seeking\s+(?:an|a)?\s*([A-Z][A-Za-z0-9 /\-&+]{3,80}?)(?:\s+who\b|\s+to\b|\.|\n)",
+                r"successful candidate will(?:\s+be)?\s+(?:an|a)?\s*([A-Z][A-Za-z0-9 /\-&+]{3,80}?)(?:\s+who\b|\s+with\b|\.|\n)",
+                r"\b((?:(?:Senior|Staff|Principal|Lead|Junior)\s+)?(?:Software Engineer|Full Stack Engineer|Frontend Engineer|Backend Engineer|Data Analyst|Product Manager|Customer Success Manager|Sales Representative))\b",
+            ]
+        )
     title = find_first(patterns, text)
     if title:
         title = re.split(r"\b(?:company|location|salary|compensation|responsibilities)\b\s*[:\-]?", title, flags=re.IGNORECASE)[0]
@@ -670,14 +778,31 @@ def extract_urls(text: str) -> list[str]:
 
 def extract_apply_url(text: str, job_url: str | None) -> str | None:
     urls = extract_urls(text)
-    trusted_terms = ("greenhouse.io", "lever.co", "ashbyhq.com", "workable.com", "smartrecruiters.com", "jobs.", "careers.")
+    trusted_terms = (
+        "greenhouse.io",
+        "lever.co",
+        "ashbyhq.com",
+        "workable.com",
+        "smartrecruiters.com",
+        "flexjobs.com",
+        "remoteok.com",
+        "weworkremotely.com",
+        "remotive.com",
+        "wellfound.com",
+        "jobs.",
+        "careers.",
+    )
     for url in [job_url, *urls]:
         if not url:
+            continue
+        if is_search_or_collection_url(url):
             continue
         lower = url.lower()
         if any(term in lower for term in trusted_terms):
             return url.strip().rstrip(".,")
-    return job_url or (urls[0].strip().rstrip(".,") if urls else None)
+    if job_url and not is_search_or_collection_url(job_url):
+        return job_url
+    return urls[0].strip().rstrip(".,") if urls else None
 
 
 def extract_contact_methods(text: str) -> tuple[list[str], list[str]]:
@@ -739,6 +864,7 @@ def has_professional_domain(extracted: ExtractedJob) -> bool:
 def extract_features(job_description: str, job_url: str | None = None) -> ExtractedJob:
     text = clean_job_text(job_description)
     company, company_confidence, company_evidence, extraction_warnings = extract_company_metadata(text, job_url)
+    extraction_warnings = [*page_quality_warnings(text, job_url), *extraction_warnings]
     extracted = ExtractedJob(
         job_title=extract_job_title(text),
         company=company,

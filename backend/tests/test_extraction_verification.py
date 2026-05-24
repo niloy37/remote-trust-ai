@@ -13,6 +13,7 @@ if str(BACKEND) not in sys.path:
 
 from app.models import AnalyzeRequest
 from app.services.analyzer import analyze
+from app.services.job_fetcher import JobFetchError, fetch_job_description
 from app.services.web_verifier import WebSource, classify_source, score_sources, verify_company_web, verify_company_web_cached
 from ml.feature_extractor import company_candidate_rejection_reason, extract_features
 
@@ -135,3 +136,62 @@ def test_generic_career_result_does_not_score_without_company_match() -> None:
     assert score < 58
     assert not signals
     assert any("No official company" in warning for warning in warnings)
+
+
+def test_search_collection_text_does_not_infer_random_company_or_title() -> None:
+    text = """
+    FlexJobs Search Results
+    1,234 remote jobs found
+    Save search
+    Recommended jobs
+    Remote Project Manager - AcmeCloud
+    Remote Data Analyst - NorthRemote
+    Remote Customer Success - BrightCo
+    Sign in to view job details
+    Page 1 of 32
+    """
+    extracted = extract_features(text, "https://www.flexjobs.com/search?search=remote")
+
+    assert extracted.company is None
+    assert extracted.job_title is None
+    assert extracted.extraction_warnings
+    assert any("search" in warning.lower() or "collection" in warning.lower() for warning in extracted.extraction_warnings)
+
+
+def test_search_url_is_rejected_before_crawling() -> None:
+    try:
+        fetch_job_description("https://www.flexjobs.com/search?search=remote")
+    except JobFetchError as exc:
+        assert "search, collection, or listing page" in str(exc)
+    else:  # pragma: no cover - this should never try network for search URLs.
+        raise AssertionError("Search URL should be rejected before crawling")
+
+
+def test_supported_portal_json_ld_pages_extract_core_fields() -> None:
+    html = """
+    <html><body>
+      <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "JobPosting",
+        "title": "Remote Product Designer",
+        "hiringOrganization": {"@type": "Organization", "name": "DesignCloud"},
+        "jobLocationType": "TELECOMMUTE",
+        "description": "Fully remote. You will design workflows, collaborate with product teams, and prototype interfaces. Required skills: design, research, communication."
+      }
+      </script>
+    </body></html>
+    """
+    urls = [
+        "https://www.flexjobs.com/remote-jobs/designcloud-product-designer",
+        "https://remoteok.com/remote-jobs/123456-remote-product-designer-designcloud",
+        "https://weworkremotely.com/remote-jobs/designcloud-remote-product-designer",
+        "https://remotive.com/remote-jobs/product/remote-product-designer-123",
+        "https://wellfound.com/company/designcloud/jobs/123456-remote-product-designer",
+    ]
+
+    for url in urls:
+        extracted = extract_features(html, url)
+        assert extracted.company == "DesignCloud"
+        assert extracted.job_title == "Remote Product Designer"
+        assert extracted.remote_type == "Fully remote"
