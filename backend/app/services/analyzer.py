@@ -144,7 +144,12 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     if fetch_warning:
         result.red_flags.append(fetch_warning)
 
-    company_verification_raw = verify_company_web(result.extracted.company, result.extracted.apply_url)
+    company_verification_raw = verify_company_web(
+        result.extracted.company,
+        result.extracted.apply_url,
+        result.extracted.company_confidence,
+        result.extracted.company_evidence,
+    )
     company_verification = CompanyVerification(**company_verification_raw.model_dict())
     scores = Scores(**result.scores.as_dict())
     if company_verification.status == "Strong evidence":
@@ -202,6 +207,7 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
         classification=classification.as_dict(),
         red_flags=result.red_flags,
         positive_signals=result.positive_signals,
+        extraction_warnings=result.extraction_warnings,
         explanation=f"{build_explanation(scores, verdict, result.red_flags, result.positive_signals, graph_verification)} {classification.evidence.explanation}",
         recommended_action=recommended_action,
     )

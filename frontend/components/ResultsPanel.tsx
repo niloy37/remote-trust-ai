@@ -50,9 +50,15 @@ function readableSourceType(value: string) {
 
 function detailRows(result: AnalysisResponse): Array<[string, string]> {
   const extracted = result.extracted;
+  const companyConfidence =
+    extracted.company_confidence === null || extracted.company_confidence === undefined
+      ? "Not available"
+      : `${Math.round(extracted.company_confidence * 100)}%`;
   return [
     ["Job title", extracted.job_title || "Not detected"],
     ["Company", extracted.company || "Not detected"],
+    ["Company confidence", companyConfidence],
+    ["Company evidence", extracted.company_evidence || "Not available"],
     ["Salary", extracted.salary || "Not disclosed"],
     ["Location", extracted.location || "Not detected"],
     ["Remote type", extracted.remote_type || "Unclear"],
@@ -98,6 +104,11 @@ export function ResultsPanel({ result, showOpenResultLink = true }: ResultsPanel
               </div>
               <h2 className="mt-5 text-2xl font-black text-white sm:text-3xl">Remote job trust analysis</h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">{result.explanation}</p>
+              {result.extraction_warnings.length ? (
+                <div className="mt-4 max-w-2xl rounded-lg border border-amber/30 bg-amber/[0.08] p-3 text-sm leading-6 text-amber">
+                  {result.extraction_warnings[0]}
+                </div>
+              ) : null}
               {showOpenResultLink ? (
                 <Link href={`/results/${result.job_id}`} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-mint hover:text-emerald-200">
                   Open shareable result <ExternalLink size={16} aria-hidden="true" />

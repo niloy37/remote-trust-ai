@@ -6,12 +6,13 @@
 
   function sourceFromUrl(url) {
     const hostname = new URL(url).hostname.toLowerCase();
-    if (hostname.endsWith("linkedin.com")) return "linkedin";
-    if (hostname.endsWith("indeed.com")) return "indeed";
-    if (hostname.includes("greenhouse")) return "greenhouse";
-    if (hostname.includes("lever")) return "lever";
-    if (hostname.includes("ashby")) return "ashby";
-    if (hostname.includes("workable")) return "workable";
+    if (hostname.endsWith("linkedin.com")) return "LinkedIn";
+    if (hostname.endsWith("indeed.com")) return "Indeed";
+    if (hostname.endsWith("greenhouse.io")) return "Greenhouse";
+    if (hostname.endsWith("lever.co")) return "Lever";
+    if (hostname.endsWith("ashbyhq.com")) return "Ashby";
+    if (hostname.endsWith("workable.com")) return "Workable";
+    if (hostname.endsWith("smartrecruiters.com")) return "SmartRecruiters";
     return null;
   }
 
@@ -109,40 +110,24 @@
     return null;
   }
 
-  function extractGenericJobPage() {
+  function extractGenericJobPage(sourceLabel = "Generic Portal") {
+    const jsonLd = extractJsonLdJob();
+    const title =
+      jsonLd.title ||
+      firstText(["h1", "h2", "[data-testid*='title' i]", "[class*='title' i]"]) ||
+      document.title;
+    const company =
+      jsonLd.company ||
+      getMetaContent(["og:site_name", "application-name"]) ||
+      firstText(["[data-testid*='company' i]", "[class*='company' i]", "[class*='department' i]"]);
+    const location =
+      jsonLd.location ||
+      firstText(["[data-testid*='location' i]", "[class*='location' i]", "[class*='office' i]"]);
+    const bodyText = fallbackMainText();
+    const description = normalizeText([jsonLd.description, bodyText].filter(Boolean).join("\n\n"));
 
-  const jsonLd = extractJsonLdJob();
-
-  const title =
-    jsonLd.title ||
-    firstText(["h1", "h2"]) ||
-    document.title;
-
-  const company =
-    jsonLd.company ||
-    getMetaContent(["og:site_name"]);
-
-  const description =
-    fallbackMainText();
-
-  if (!description || description.length < 200) {
-
-    return {
-      ok: false,
-      error: "Could not extract enough readable job text."
-    };
+    return { source: sourceLabel, title, company, location, description };
   }
-
-  return {
-    ok: true,
-    source: "Generic Portal",
-    job_title: title,
-    company,
-    location: jsonLd.location || null,
-    job_description: description,
-    page_url: window.location.href
-  };
-}
 
   function extractJsonLdJob() {
     const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
@@ -469,15 +454,23 @@
   function extractJobPage() {
     const source = sourceFromUrl(location.href);
     if (!source) {
-      return extractGenericJobPage();
+      return {
+        ok: false,
+        error: "Open an individual posting on a supported job site before running RemoteTrust AI."
+      };
     }
 
-    const extracted = source === "linkedin" ? extractLinkedIn() : extractIndeed();
+    const extracted =
+      source === "LinkedIn" ? extractLinkedIn() :
+      source === "Indeed" ? extractIndeed() :
+      extractGenericJobPage(source);
     const jobText = buildJobText(extracted).slice(0, MAX_DESCRIPTION_LENGTH);
     if (!extracted.description || extracted.description.length < 120) {
       const hint = extracted.source === "LinkedIn"
         ? " On LinkedIn search/browse pages, click one job so the right-side job detail panel opens, then run the extension again."
-        : "";
+        : extracted.source === "Indeed"
+          ? ""
+          : " Open the individual job posting rather than a search or listing page, then run the extension again.";
       return {
         ok: false,
         error: `Could not find enough readable job description text on this ${extracted.source} page.${hint}`
@@ -494,6 +487,10 @@
       job_description: jobText
     };
   }
+
+  window.__REMOTE_TRUST_AI_TEST_HOOKS__ = {
+    sourceFromUrl
+  };
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "REMOTE_TRUST_EXTRACT_JOB") return false;

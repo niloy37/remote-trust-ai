@@ -73,6 +73,36 @@ def test_classifies_hybrid_or_location_bound() -> None:
     assert result.classification.evidence.remote_restrictions.onsite_or_hybrid_requirement
 
 
+def test_flexible_remote_options_are_not_hybrid_bound() -> None:
+    result = analyze_text(
+        """
+        Company: Envisio
+        Job title: Innovation Engineer
+        We are seeking an Innovation Engineer who explores emerging technologies.
+        Benefits include flexible work options (office, hybrid or remote).
+        """
+    )
+
+    assert result.extracted.remote_type == "Flexible remote option"
+    assert result.classification.label != "HYBRID_OR_LOCATION_BOUND"
+    assert result.classification.evidence.remote_restrictions.onsite_or_hybrid_requirement is None
+
+
+def test_hybrid_role_based_in_location_stays_location_bound() -> None:
+    result = analyze_text(
+        """
+        Company: OfficeWorks
+        Job title: Product Manager
+        This is a hybrid role based in Toronto.
+        Responsibilities include roadmap planning and stakeholder collaboration.
+        Required skills: communication, analytics. Salary: $100,000 to $120,000.
+        """
+    )
+
+    assert result.classification.label == "HYBRID_OR_LOCATION_BOUND"
+    assert result.classification.evidence.remote_restrictions.onsite_or_hybrid_requirement
+
+
 def test_classifies_low_quality_unverified() -> None:
     result = analyze_text(
         """

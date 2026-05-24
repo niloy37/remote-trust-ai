@@ -27,6 +27,24 @@ def test_extracts_hybrid_language() -> None:
     assert restrictions.source_snippets
 
 
+def test_flexible_work_options_do_not_create_hybrid_requirement() -> None:
+    text = "Benefits include flexible work options (office, hybrid or remote)."
+    extracted = extract_features(text)
+    restrictions = extract_remote_restrictions(text, extracted)
+
+    assert extracted.remote_type == "Flexible remote option"
+    assert restrictions.onsite_or_hybrid_requirement is None
+
+
+def test_choose_remote_hybrid_or_office_is_optional() -> None:
+    text = "Employees can choose remote, hybrid, or office options based on preference."
+    extracted = extract_features(text)
+    restrictions = extract_remote_restrictions(text, extracted)
+
+    assert extracted.remote_type == "Flexible remote option"
+    assert restrictions.onsite_or_hybrid_requirement is None
+
+
 def test_ignores_url_encoded_remote_filter_noise() -> None:
     text = """
     Browser Title: Jobs on LinkedIn

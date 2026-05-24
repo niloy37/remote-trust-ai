@@ -5,7 +5,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 from urllib.parse import urlparse
 
-from .feature_extractor import clean_job_text, is_page_chrome_noise_line
+from .feature_extractor import clean_job_text, has_hard_hybrid_or_onsite_requirement, has_optional_remote_choice, is_page_chrome_noise_line
 from .schemas import ExtractedJob, ScoreBreakdown
 
 
@@ -148,6 +148,12 @@ def extract_remote_restrictions(job_description: str, extracted: ExtractedJob) -
     onsite = None
     for pattern in ONSITE_PATTERNS:
         onsite = _snippet(text, pattern)
+        if onsite and has_optional_remote_choice(onsite) and not has_hard_hybrid_or_onsite_requirement(onsite):
+            onsite = None
+            continue
+        if onsite and not has_hard_hybrid_or_onsite_requirement(onsite):
+            onsite = None
+            continue
         if onsite:
             snippets.append(onsite)
             break

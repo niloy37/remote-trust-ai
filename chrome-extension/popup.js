@@ -1,5 +1,13 @@
 const API_BASE_URL = "http://127.0.0.1:8000";
-const SUPPORTED_HOSTS = [];
+const SUPPORTED_HOSTS = [
+  "linkedin.com",
+  "indeed.com",
+  "greenhouse.io",
+  "lever.co",
+  "ashbyhq.com",
+  "workable.com",
+  "smartrecruiters.com"
+];
 
 const els = {
   unsupported: document.getElementById("unsupported"),
@@ -36,11 +44,7 @@ let activeSupported = false;
 function isSupportedUrl(url) {
   try {
     const parsed = new URL(url);
-
-    return (
-       parsed.protocol === "https:" ||
-       parsed.protocol.startsWith("http")
-    );
+    return parsed.protocol === "https:" && SUPPORTED_HOSTS.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`));
   } catch {
     return false;
   }
@@ -337,12 +341,15 @@ async function init() {
 
   activeTab = await getActiveTab();
 
-  const stored = await chrome.storage.local.get(
-  "remoteTrustConsent"
-);
+  const stored = await chrome.storage.local.get([
+    "remoteTrustConsent",
+    "remoteTrustApplicantCountry",
+    "remoteTrustDesiredRole"
+  ]);
 
-els.consent.checked =
-  stored.remoteTrustConsent || false;
+  els.consent.checked = stored.remoteTrustConsent || false;
+  if (stored.remoteTrustApplicantCountry) els.country.value = stored.remoteTrustApplicantCountry;
+  if (stored.remoteTrustDesiredRole) els.desiredRole.value = stored.remoteTrustDesiredRole;
 
   activeSupported = Boolean(
     activeTab?.url &&
@@ -370,6 +377,18 @@ els.consent.checked =
     "Ready to analyze this job page."
   );
 }
+
+els.country.addEventListener("change", async () => {
+  await chrome.storage.local.set({
+    remoteTrustApplicantCountry: els.country.value
+  });
+});
+
+els.desiredRole.addEventListener("input", async () => {
+  await chrome.storage.local.set({
+    remoteTrustDesiredRole: els.desiredRole.value
+  });
+});
 
 els.consent.addEventListener("change", async () => {
 

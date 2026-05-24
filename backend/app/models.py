@@ -40,6 +40,8 @@ class Scores(BaseModel):
 class ExtractedJob(BaseModel):
     job_title: str | None = None
     company: str | None = None
+    company_confidence: float | None = None
+    company_evidence: str | None = None
     salary: str | None = None
     location: str | None = None
     remote_type: str | None = None
@@ -163,6 +165,7 @@ class AnalyzeResponse(BaseModel):
     classification: JobClassification
     red_flags: list[str]
     positive_signals: list[str]
+    extraction_warnings: list[str] = Field(default_factory=list)
     explanation: str
     recommended_action: Literal["Apply", "Review carefully", "Avoid"]
 
