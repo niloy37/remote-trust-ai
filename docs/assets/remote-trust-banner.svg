@@ -1,0 +1,54 @@
+<svg width="1280" height="420" viewBox="0 0 1280 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">RemoteTrust AI banner</title>
+  <desc id="desc">A premium hero banner showing RemoteTrust AI scoring remote jobs for global applicants.</desc>
+  <rect width="1280" height="420" rx="32" fill="#08111F"/>
+  <defs>
+    <linearGradient id="hero" x1="80" y1="40" x2="1180" y2="410" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E" stop-opacity="0.62"/>
+      <stop offset="0.46" stop-color="#1D4ED8" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#7C3AED" stop-opacity="0.38"/>
+    </linearGradient>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse">
+      <path d="M42 0H0V42" stroke="#94A3B8" stroke-opacity="0.10" stroke-width="1"/>
+    </pattern>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="20" stdDeviation="28" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="420" rx="32" fill="url(#hero)"/>
+  <rect width="1280" height="420" rx="32" fill="url(#grid)"/>
+  <circle cx="1075" cy="92" r="118" fill="#22D3EE" opacity="0.08"/>
+  <circle cx="112" cy="360" r="170" fill="#34D399" opacity="0.08"/>
+  <g transform="translate(84 78)">
+    <rect width="86" height="86" rx="22" fill="#0B4E53" stroke="#34D399" stroke-opacity="0.5" stroke-width="2"/>
+    <path d="M43 17L65 26V45C65 62 56 75 43 81C30 75 21 62 21 45V26L43 17Z" stroke="#F8FAFC" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M34 46L41 53L55 36" stroke="#FACC15" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="84" y="205" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="800" letter-spacing="0">RemoteTrust AI</text>
+  <text x="88" y="255" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="500">Explainable trust scoring for remote jobs, global eligibility, and scam risk.</text>
+  <g transform="translate(88 296)">
+    <rect width="168" height="42" rx="21" fill="#34D399" fill-opacity="0.14" stroke="#34D399" stroke-opacity="0.42"/>
+    <text x="22" y="27" fill="#A7F3D0" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">Local-first AI</text>
+    <rect x="184" width="210" height="42" rx="21" fill="#22D3EE" fill-opacity="0.14" stroke="#22D3EE" stroke-opacity="0.42"/>
+    <text x="206" y="27" fill="#A5F3FC" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">Built for Scale Without Borders</text>
+    <rect x="410" width="176" height="42" rx="21" fill="#FACC15" fill-opacity="0.12" stroke="#FACC15" stroke-opacity="0.38"/>
+    <text x="432" y="27" fill="#FEF08A" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="700">No paid API required</text>
+  </g>
+  <g transform="translate(800 82)" filter="url(#shadow)">
+    <rect width="344" height="242" rx="22" fill="#101A2B" stroke="#334155"/>
+    <rect x="24" y="24" width="114" height="114" rx="57" fill="#1E293B"/>
+    <path d="M81 24A57 57 0 1 1 34 113" stroke="#FACC15" stroke-width="20" stroke-linecap="round"/>
+    <text x="58" y="95" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800">84</text>
+    <rect x="168" y="28" width="138" height="30" rx="15" fill="#34D399" fill-opacity="0.14" stroke="#34D399" stroke-opacity="0.35"/>
+    <text x="187" y="49" fill="#A7F3D0" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="800">Verified</text>
+    <text x="168" y="94" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800">Remote role</text>
+    <text x="168" y="124" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="14">Company, eligibility, and</text>
+    <text x="168" y="146" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="14">remote policy checked.</text>
+    <g transform="translate(24 168)">
+      <rect width="296" height="12" rx="6" fill="#1E293B"/>
+      <rect width="250" height="12" rx="6" fill="#34D399"/>
+      <rect y="32" width="296" height="12" rx="6" fill="#1E293B"/>
+      <rect y="32" width="218" height="12" rx="6" fill="#22D3EE"/>
+    </g>
+  </g>
+</svg>

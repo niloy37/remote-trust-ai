@@ -1,0 +1,14 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">RemoteTrust AI logo</title>
+  <desc id="desc">A shield with a connected globe and verification checkmark.</desc>
+  <rect width="256" height="256" rx="48" fill="#08111F"/>
+  <circle cx="128" cy="128" r="86" fill="#0B4E53" opacity="0.34"/>
+  <circle cx="128" cy="128" r="66" stroke="#22D3EE" stroke-width="4" opacity="0.72"/>
+  <path d="M82 122C96 108 111 101 128 101C145 101 160 108 174 122" stroke="#34D399" stroke-width="4" stroke-linecap="round"/>
+  <path d="M82 134C96 148 111 155 128 155C145 155 160 148 174 134" stroke="#34D399" stroke-width="4" stroke-linecap="round"/>
+  <path d="M128 63C112 82 104 104 104 128C104 152 112 174 128 193" stroke="#22D3EE" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+  <path d="M128 63C144 82 152 104 152 128C152 152 144 174 128 193" stroke="#22D3EE" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+  <path d="M73 128H183" stroke="#22D3EE" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+  <path d="M128 49L188 72V120C188 160 164 190 128 206C92 190 68 160 68 120V72L128 49Z" stroke="#F8FAFC" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M105 130L122 147L154 108" stroke="#FACC15" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
