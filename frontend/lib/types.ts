@@ -187,6 +187,7 @@ export interface OpportunityFeedSummary {
   last_run_at: string | null;
   jobs_collected: number;
   jobs_deduped: number;
+  preprocessing_rejected: number;
   verified_opportunities: number;
   risky_jobs_filtered: number;
   average_score: number | null;
@@ -206,6 +207,7 @@ export interface IngestionRunSummary {
   source_records_collected: number;
   bronze_records_written: number;
   silver_records_created: number;
+  preprocessing_rejected: number;
   duplicates_skipped: number;
   gold_records_published: number;
   verified_opportunities: number;

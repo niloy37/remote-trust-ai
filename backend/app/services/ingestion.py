@@ -36,6 +36,7 @@ from app.models import (
 from app.services.analyzer import analyze
 from app.services.job_fetcher import JobFetchError, fetch_job_description
 from ml.feature_extractor import clean_job_text, extract_apply_url, extract_features
+from ml.quality_filter import assess_job_quality
 
 
 _run_lock = threading.Lock()
@@ -66,6 +67,12 @@ def queue_path() -> Path:
     return path
 
 
+def clear_url_queue() -> None:
+    path = queue_path()
+    if path.exists():
+        path.write_text("", encoding="utf-8")
+
+
 def duckdb_error() -> RuntimeError:
     return RuntimeError("DuckDB is required for ingestion. Install backend requirements before running the lakehouse pipeline.")
 
@@ -75,6 +82,12 @@ def connect_lakehouse():
         raise duckdb_error()
     root = lakehouse_root()
     return duckdb.connect(str(root / "remote_trust_lakehouse.duckdb"))
+
+
+def ensure_column(connection: Any, table: str, column: str, definition: str) -> None:
+    columns = {row[1] for row in connection.execute(f"PRAGMA table_info('{table}')").fetchall()}
+    if column not in columns:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def init_lakehouse(connection: Any) -> None:
@@ -137,6 +150,28 @@ def init_lakehouse(connection: Any) -> None:
     )
     connection.execute(
         """
+        CREATE TABLE IF NOT EXISTS rejected_job_postings (
+            fingerprint VARCHAR PRIMARY KEY,
+            bronze_record_id VARCHAR,
+            source_name VARCHAR,
+            source_type VARCHAR,
+            job_url VARCHAR,
+            applicant_country VARCHAR,
+            desired_role VARCHAR,
+            raw_title VARCHAR,
+            raw_company VARCHAR,
+            quality_label VARCHAR,
+            quality_score DOUBLE,
+            rejection_reasons_json VARCHAR,
+            quality_warnings_json VARCHAR,
+            ml_prediction_json VARCHAR,
+            cleaned_description VARCHAR,
+            created_at VARCHAR
+        )
+        """
+    )
+    connection.execute(
+        """
         CREATE TABLE IF NOT EXISTS ingestion_runs (
             run_id VARCHAR PRIMARY KEY,
             status VARCHAR,
@@ -145,6 +180,7 @@ def init_lakehouse(connection: Any) -> None:
             source_records_collected INTEGER,
             bronze_records_written INTEGER,
             silver_records_created INTEGER,
+            preprocessing_rejected INTEGER,
             duplicates_skipped INTEGER,
             gold_records_published INTEGER,
             verified_opportunities INTEGER,
@@ -153,6 +189,7 @@ def init_lakehouse(connection: Any) -> None:
         )
         """
     )
+    ensure_column(connection, "ingestion_runs", "preprocessing_rejected", "INTEGER DEFAULT 0")
 
 
 def valid_http_url(value: str | None) -> str | None:
@@ -197,7 +234,24 @@ def source_config() -> dict[str, Any]:
 
 def source_file_path(path: str) -> Path:
     value = Path(path)
-    return value if value.is_absolute() else PROJECT_ROOT / value
+    candidates: list[Path] = []
+    if value.is_absolute():
+        candidates.append(value)
+    else:
+        candidates.extend(
+            [
+                PROJECT_ROOT / value,
+                settings.ingestion_source_config.parent / value,
+                settings.lakehouse_path.parent.parent / value,
+            ]
+        )
+    candidates.extend([PROJECT_ROOT / value.name, PROJECT_ROOT / "data" / value.name])
+
+    unique_candidates = list(dict.fromkeys(candidates))
+    for candidate in unique_candidates:
+        if candidate.exists():
+            return candidate
+    return unique_candidates[0] if unique_candidates else value
 
 
 def bronze_record(
@@ -411,8 +465,24 @@ def existing_silver_fingerprints(connection: Any) -> set[str]:
     return {row[0] for row in connection.execute("SELECT fingerprint FROM silver_job_postings").fetchall()}
 
 
-def silver_from_bronze(records: list[dict[str, Any]], existing: set[str], errors: list[str]) -> tuple[list[dict[str, Any]], int]:
+def existing_ingestion_fingerprints(connection: Any) -> set[str]:
+    rows = connection.execute(
+        """
+        SELECT fingerprint FROM silver_job_postings
+        UNION
+        SELECT fingerprint FROM rejected_job_postings
+        """
+    ).fetchall()
+    return {row[0] for row in rows}
+
+
+def silver_from_bronze(
+    records: list[dict[str, Any]],
+    existing: set[str],
+    errors: list[str],
+) -> tuple[list[dict[str, Any]], int, list[dict[str, Any]]]:
     silver: list[dict[str, Any]] = []
+    rejected: list[dict[str, Any]] = []
     duplicates = 0
     for record in records:
         warnings: list[str] = []
@@ -432,8 +502,62 @@ def silver_from_bronze(records: list[dict[str, Any]], existing: set[str], errors
         if fingerprint in existing:
             duplicates += 1
             continue
+        if not cleaned:
+            rejected.append(
+                {
+                    "fingerprint": fingerprint,
+                    "bronze_record_id": record["record_id"],
+                    "source_name": record["source_name"],
+                    "source_type": record["source_type"],
+                    "job_url": job_url,
+                    "applicant_country": record["applicant_country"],
+                    "desired_role": record.get("desired_role"),
+                    "raw_title": record.get("raw_title"),
+                    "raw_company": record.get("raw_company"),
+                    "quality_label": "low_quality",
+                    "quality_score": 0.0,
+                    "rejection_reasons_json": json_dumps(["No readable job text was available after extraction."]),
+                    "quality_warnings_json": json_dumps(list(dict.fromkeys(warnings))),
+                    "ml_prediction_json": json_dumps(None),
+                    "cleaned_description": cleaned,
+                    "created_at": utc_now(),
+                }
+            )
+            existing.add(fingerprint)
+            continue
 
-        extracted = extract_features(cleaned, job_url) if cleaned else None
+        quality, analysis = assess_job_quality(
+            job_description=cleaned,
+            job_url=job_url,
+            applicant_country=record["applicant_country"],
+            desired_role=record.get("desired_role"),
+        )
+        warnings.extend(quality.warnings)
+        if not quality.accepted:
+            rejected.append(
+                {
+                    "fingerprint": fingerprint,
+                    "bronze_record_id": record["record_id"],
+                    "source_name": record["source_name"],
+                    "source_type": record["source_type"],
+                    "job_url": job_url,
+                    "applicant_country": record["applicant_country"],
+                    "desired_role": record.get("desired_role"),
+                    "raw_title": record.get("raw_title"),
+                    "raw_company": record.get("raw_company"),
+                    "quality_label": quality.label,
+                    "quality_score": quality.score,
+                    "rejection_reasons_json": json_dumps(quality.reasons),
+                    "quality_warnings_json": json_dumps(list(dict.fromkeys(warnings))),
+                    "ml_prediction_json": json_dumps(quality.ml_prediction.as_dict() if quality.ml_prediction else None),
+                    "cleaned_description": cleaned,
+                    "created_at": utc_now(),
+                }
+            )
+            existing.add(fingerprint)
+            continue
+
+        extracted = analysis.extracted
         if extracted:
             warnings.extend(extracted.extraction_warnings)
         apply_url = valid_http_url(extract_apply_url(cleaned, job_url) if cleaned else None) or job_url
@@ -463,7 +587,7 @@ def silver_from_bronze(records: list[dict[str, Any]], existing: set[str], errors
             }
         )
         existing.add(fingerprint)
-    return silver, duplicates
+    return silver, duplicates, rejected
 
 
 def insert_silver(connection: Any, records: list[dict[str, Any]]) -> int:
@@ -494,6 +618,44 @@ def insert_silver(connection: Any, records: list[dict[str, Any]]) -> int:
                 record["remote_type"],
                 record["cleaned_description"],
                 record["preprocessing_warnings_json"],
+                record["created_at"],
+            )
+            for record in records
+        ],
+    )
+    return len(records)
+
+
+def insert_rejected(connection: Any, records: list[dict[str, Any]]) -> int:
+    if not records:
+        return 0
+    connection.executemany(
+        """
+        INSERT OR IGNORE INTO rejected_job_postings (
+            fingerprint, bronze_record_id, source_name, source_type, job_url,
+            applicant_country, desired_role, raw_title, raw_company, quality_label,
+            quality_score, rejection_reasons_json, quality_warnings_json,
+            ml_prediction_json, cleaned_description, created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                record["fingerprint"],
+                record["bronze_record_id"],
+                record["source_name"],
+                record["source_type"],
+                record["job_url"],
+                record["applicant_country"],
+                record["desired_role"],
+                record["raw_title"],
+                record["raw_company"],
+                record["quality_label"],
+                record["quality_score"],
+                record["rejection_reasons_json"],
+                record["quality_warnings_json"],
+                record["ml_prediction_json"],
+                record["cleaned_description"],
                 record["created_at"],
             )
             for record in records
@@ -591,7 +753,7 @@ def analyze_silver_records(records: list[dict[str, Any]], errors: list[str]) -> 
                 "fingerprint": record["fingerprint"],
                 "job_id": saved.job_id,
                 "curation_bucket": bucket,
-                "published_to_feed": True,
+                "published_to_feed": bucket != "rejected",
                 "final_score": saved.final_score,
                 "verdict": saved.verdict,
                 "recommended_action": saved.recommended_action,
@@ -609,6 +771,7 @@ def export_parquet_snapshots(connection: Any, errors: list[str]) -> None:
     exports = {
         "bronze_job_events": root / "bronze" / "job_events.parquet",
         "silver_job_postings": root / "silver" / "job_postings.parquet",
+        "rejected_job_postings": root / "silver" / "rejected_job_postings.parquet",
         "gold_opportunities": root / "gold" / "opportunities.parquet",
         "ingestion_runs": root / "runs" / "ingestion_runs.parquet",
     }
@@ -640,9 +803,9 @@ def count_risky_jobs(connection: Any) -> int:
     return count_query(
         connection,
         """
-        SELECT COUNT(*)
-        FROM gold_opportunities
-        WHERE curation_bucket = 'rejected'
+        SELECT
+            (SELECT COUNT(*) FROM gold_opportunities WHERE curation_bucket = 'rejected')
+            + (SELECT COUNT(*) FROM rejected_job_postings)
         """,
     )
 
@@ -652,11 +815,11 @@ def insert_run_summary(connection: Any, summary: IngestionRunSummary) -> None:
         """
         INSERT OR REPLACE INTO ingestion_runs (
             run_id, status, started_at, completed_at, source_records_collected,
-            bronze_records_written, silver_records_created, duplicates_skipped,
-            gold_records_published, verified_opportunities, risky_jobs_filtered,
+            bronze_records_written, silver_records_created, preprocessing_rejected,
+            duplicates_skipped, gold_records_published, verified_opportunities, risky_jobs_filtered,
             errors_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             summary.run_id,
@@ -666,6 +829,7 @@ def insert_run_summary(connection: Any, summary: IngestionRunSummary) -> None:
             summary.source_records_collected,
             summary.bronze_records_written,
             summary.silver_records_created,
+            summary.preprocessing_rejected,
             summary.duplicates_skipped,
             summary.gold_records_published,
             summary.verified_opportunities,
@@ -694,8 +858,10 @@ def run_ingestion() -> IngestionRunSummary:
         try:
             init_lakehouse(connection)
             bronze = collect_bronze_records(run_id, started_at, errors)
+            has_queue_records = any(record.get("source_type") == "url_queue" for record in bronze)
             bronze_written = insert_bronze(connection, bronze)
-            silver, duplicates = silver_from_bronze(bronze, existing_silver_fingerprints(connection), errors)
+            silver, duplicates, rejected = silver_from_bronze(bronze, existing_ingestion_fingerprints(connection), errors)
+            preprocessing_rejected = insert_rejected(connection, rejected)
             silver_created = insert_silver(connection, silver)
             pending = pending_silver_records(connection)
             gold = analyze_silver_records(pending, errors)
@@ -710,6 +876,7 @@ def run_ingestion() -> IngestionRunSummary:
                 source_records_collected=len(bronze),
                 bronze_records_written=bronze_written,
                 silver_records_created=silver_created,
+                preprocessing_rejected=preprocessing_rejected,
                 duplicates_skipped=duplicates,
                 gold_records_published=gold_published,
                 verified_opportunities=count_verified_jobs(connection),
@@ -718,6 +885,8 @@ def run_ingestion() -> IngestionRunSummary:
                 lakehouse_path=str(lakehouse_root()),
             )
             insert_run_summary(connection, summary)
+            if has_queue_records:
+                clear_url_queue()
             return summary
         finally:
             connection.close()
@@ -790,7 +959,7 @@ def ingestion_status() -> IngestionStatusResponse:
 
 def lakehouse_counts() -> dict[str, int]:
     if duckdb is None:
-        return {"jobs_collected": 0, "jobs_deduped": 0, "verified_opportunities": 0, "risky_jobs_filtered": 0}
+        return {"jobs_collected": 0, "jobs_deduped": 0, "preprocessing_rejected": 0, "verified_opportunities": 0, "risky_jobs_filtered": 0}
     try:
         connection = connect_lakehouse()
         try:
@@ -798,13 +967,14 @@ def lakehouse_counts() -> dict[str, int]:
             return {
                 "jobs_collected": count_query(connection, "SELECT COUNT(*) FROM bronze_job_events"),
                 "jobs_deduped": count_query(connection, "SELECT COUNT(*) FROM silver_job_postings"),
+                "preprocessing_rejected": count_query(connection, "SELECT COUNT(*) FROM rejected_job_postings"),
                 "verified_opportunities": count_verified_jobs(connection),
                 "risky_jobs_filtered": count_risky_jobs(connection),
             }
         finally:
             connection.close()
     except Exception:
-        return {"jobs_collected": 0, "jobs_deduped": 0, "verified_opportunities": 0, "risky_jobs_filtered": 0}
+        return {"jobs_collected": 0, "jobs_deduped": 0, "preprocessing_rejected": 0, "verified_opportunities": 0, "risky_jobs_filtered": 0}
 
 
 def gold_job_ids() -> list[str]:
@@ -831,6 +1001,9 @@ def gold_job_ids() -> list[str]:
 
 def opportunity_jobs() -> list[Any]:
     ids = gold_job_ids()
+    if duckdb is not None:
+        jobs = [get_job(job_id) for job_id in ids]
+        return [job for job in jobs if job]
     if not ids:
         return list_jobs()
     jobs = [get_job(job_id) for job_id in ids]
@@ -849,6 +1022,7 @@ def opportunity_feed() -> OpportunityFeedResponse:
             last_run_at=status.last_run_at,
             jobs_collected=counts["jobs_collected"],
             jobs_deduped=counts["jobs_deduped"],
+            preprocessing_rejected=counts["preprocessing_rejected"],
             verified_opportunities=counts["verified_opportunities"],
             risky_jobs_filtered=counts["risky_jobs_filtered"],
             average_score=average_score,
@@ -875,5 +1049,5 @@ def enqueue_url(payload: IngestionQueueRequest) -> IngestionQueueResponse:
     return IngestionQueueResponse(
         queued=True,
         queued_count=queued_count,
-        message="URL queued for the next ingestion run.",
+        message="URL queued for ingestion.",
     )

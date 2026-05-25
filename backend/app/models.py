@@ -212,6 +212,7 @@ class IngestionRunSummary(BaseModel):
     source_records_collected: int = 0
     bronze_records_written: int = 0
     silver_records_created: int = 0
+    preprocessing_rejected: int = 0
     duplicates_skipped: int = 0
     gold_records_published: int = 0
     verified_opportunities: int = 0
@@ -236,6 +237,7 @@ class OpportunityFeedSummary(BaseModel):
     last_run_at: str | None = None
     jobs_collected: int
     jobs_deduped: int
+    preprocessing_rejected: int = 0
     verified_opportunities: int
     risky_jobs_filtered: int
     average_score: int | None = None

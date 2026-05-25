@@ -15,7 +15,7 @@ if str(BACKEND) not in sys.path:
 from app.core.config import settings
 from app.db.database import list_jobs, reset_db
 from app.models import IngestionQueueRequest
-from app.services.ingestion import enqueue_url, opportunity_feed, run_ingestion
+from app.services.ingestion import enqueue_url, opportunity_feed, run_ingestion, source_file_path
 
 
 def configure_ingestion(tmp_path: Path) -> None:
@@ -96,17 +96,20 @@ def test_lakehouse_ingestion_layers_dedupe_and_publish(tmp_path: Path) -> None:
     feed = opportunity_feed()
 
     assert first.bronze_records_written == 3
-    assert first.silver_records_created == 2
-    assert first.gold_records_published == 2
+    assert first.silver_records_created == 1
+    assert first.preprocessing_rejected == 1
+    assert first.gold_records_published == 1
     assert second.duplicates_skipped == 3
     assert second.gold_records_published == 0
-    assert len(list_jobs()) == 2
+    assert len(list_jobs()) == 1
     assert feed.summary.jobs_collected == 6
-    assert feed.summary.jobs_deduped == 2
+    assert feed.summary.jobs_deduped == 1
+    assert feed.summary.preprocessing_rejected == 1
     assert feed.summary.verified_opportunities >= 1
     assert feed.summary.risky_jobs_filtered >= 1
     assert (settings.lakehouse_path / "bronze" / "job_events.parquet").exists()
     assert (settings.lakehouse_path / "silver" / "job_postings.parquet").exists()
+    assert (settings.lakehouse_path / "silver" / "rejected_job_postings.parquet").exists()
     assert (settings.lakehouse_path / "gold" / "opportunities.parquet").exists()
     assert any(job.extracted.apply_url for job in feed.jobs)
 
@@ -126,3 +129,10 @@ def test_url_queue_adds_live_collection_input(tmp_path: Path) -> None:
     assert response.queued
     assert response.queued_count == 1
     assert (settings.lakehouse_path / "queue" / "url_queue.jsonl").exists()
+
+
+def test_deployed_data_mount_source_path_falls_back_to_packaged_data() -> None:
+    resolved = source_file_path("/data/sample_jobs.json")
+
+    assert resolved.exists()
+    assert resolved.name == "sample_jobs.json"

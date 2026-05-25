@@ -28,6 +28,7 @@ app.add_middleware(
 
 
 async def ingestion_scheduler() -> None:
+    await asyncio.to_thread(run_ingestion)
     while True:
         await asyncio.sleep(settings.ingestion_interval_seconds)
         await asyncio.to_thread(run_ingestion)

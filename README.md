@@ -447,7 +447,8 @@ Frontend:
 
 | Variable | Purpose |
 | --- | --- |
-| `BACKEND_INTERNAL_URL` | Server-side backend URL for production/Docker builds. |
+| `BACKEND_INTERNAL_URL` | Server-side backend URL for production/Docker builds. Defaults to the deployed Render backend when unset. |
+| `NEXT_PUBLIC_BACKEND_URL` | Optional browser/frontend deployment backend URL fallback. |
 | `NEXT_PUBLIC_API_BASE_PATH` | Browser-facing API proxy path, default `/api/backend`. |
 
 ---

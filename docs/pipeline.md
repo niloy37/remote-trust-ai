@@ -24,7 +24,16 @@ The MVP accepts either a job URL or pasted job description. If only a URL is pro
 
 ## 2. Preprocessing
 
-The backend normalizes whitespace, strips basic HTML, and passes text into the local ML package.
+The backend normalizes whitespace, strips basic HTML, and runs an ingestion
+quality gate before records enter the Silver layer. The gate rejects inputs that
+look like search/listing pages, very short postings, suspicious/fabricated job
+titles, severe scam/payment language, weak legitimacy, or low completeness.
+
+The quality gate combines deterministic trust rules with a local TF-IDF +
+Logistic Regression model trained from the bundled labeled examples when no
+saved artifact is present. Accepted postings move to Silver; rejected postings
+are stored in `rejected_job_postings` with reasons and ML probabilities for
+auditability.
 
 ## 3. Feature Extraction
 
@@ -62,6 +71,11 @@ The final score is a weighted average:
 ## 5. Storage and Feedback
 
 The FastAPI backend stores the job analysis and user feedback in SQLite. The schema is intentionally simple and can be migrated to PostgreSQL later.
+
+The ingestion service also maintains DuckDB + Parquet Bronze/Silver/Gold
+snapshots. Bronze keeps collected raw events, Silver keeps only accepted
+high-quality postings, `rejected_job_postings` keeps preprocessing rejections,
+and Gold publishes only curated/reviewable opportunities to the feed.
 
 ## 6. Advanced Classification MVP
 

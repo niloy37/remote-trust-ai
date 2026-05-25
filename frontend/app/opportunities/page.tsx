@@ -189,7 +189,7 @@ export default function OpportunitiesPage() {
     setNotice("");
     try {
       const result = await runIngestion();
-      setNotice(`Reviewed ${result.source_records_collected} jobs and added ${result.gold_records_published} new opportunities.`);
+      setNotice(`Reviewed ${result.source_records_collected} jobs, rejected ${result.preprocessing_rejected} low-quality postings, and added ${result.gold_records_published} opportunities.`);
       await loadJobs();
     } catch (err) {
       setError(friendlyErrorMessage(err, "We could not refresh the opportunity feed right now. Please try again."));
@@ -211,7 +211,11 @@ export default function OpportunitiesPage() {
         applicant_country: queueCountry,
         desired_role: queueRole.trim() || null
       });
-      setNotice(`Added ${response.queued_count} job URL${response.queued_count === 1 ? "" : "s"} for review.`);
+      const result = await runIngestion();
+      await loadJobs();
+      setNotice(
+        `${response.message} Reviewed queued sources now: ${result.gold_records_published} added, ${result.preprocessing_rejected} rejected by quality filters.`
+      );
       setQueueUrl("");
     } catch (err) {
       setError(friendlyErrorMessage(err, "We could not add that job URL right now. Please try again."));
@@ -281,19 +285,19 @@ export default function OpportunitiesPage() {
         <section className="mt-8 grid gap-4 md:grid-cols-5">
           <div className="surface rounded-lg p-5">
             <div className="text-sm text-slate-400">Jobs collected</div>
-            <div className="mt-2 text-3xl font-black text-white">{summary?.jobs_collected || jobs.length}</div>
+            <div className="mt-2 text-3xl font-black text-white">{summary?.jobs_collected ?? jobs.length}</div>
           </div>
           <div className="surface rounded-lg p-5">
-            <div className="text-sm text-slate-400">Duplicates checked</div>
-            <div className="mt-2 text-3xl font-black text-cyan">{summary?.jobs_deduped || jobs.length}</div>
+            <div className="text-sm text-slate-400">Quality accepted</div>
+            <div className="mt-2 text-3xl font-black text-cyan">{summary?.jobs_deduped ?? jobs.length}</div>
           </div>
           <div className="surface rounded-lg p-5">
             <div className="text-sm text-slate-400">Verified opportunities</div>
-            <div className="mt-2 text-3xl font-black text-mint">{summary?.verified_opportunities || jobsByBucket.curated.length}</div>
+            <div className="mt-2 text-3xl font-black text-mint">{summary?.verified_opportunities ?? jobsByBucket.curated.length}</div>
           </div>
           <div className="surface rounded-lg p-5">
-            <div className="text-sm text-slate-400">Risky removed</div>
-            <div className="mt-2 text-3xl font-black text-rose">{summary?.risky_jobs_filtered || jobsByBucket.rejected.length}</div>
+            <div className="text-sm text-slate-400">Rejected by filters</div>
+            <div className="mt-2 text-3xl font-black text-rose">{summary?.risky_jobs_filtered ?? jobsByBucket.rejected.length}</div>
           </div>
           <div className="surface rounded-lg p-5">
             <div className="text-sm text-slate-400">Average score</div>
