@@ -1020,6 +1020,7 @@ def opportunity_feed() -> OpportunityFeedResponse:
             scheduler_enabled=status.scheduler_enabled,
             ingestion_status=status.last_status,
             last_run_at=status.last_run_at,
+            opportunities_available=len(jobs),
             jobs_collected=counts["jobs_collected"],
             jobs_deduped=counts["jobs_deduped"],
             preprocessing_rejected=counts["preprocessing_rejected"],

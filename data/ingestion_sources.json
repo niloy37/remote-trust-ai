@@ -5,6 +5,12 @@
       "path": "data/sample_jobs.json",
       "enabled": true,
       "default_applicant_country": "India"
+    },
+    {
+      "name": "append_only_demo_jobs",
+      "path": "data/append_only_ingestion_jobs.json",
+      "enabled": true,
+      "default_applicant_country": "India"
     }
   ],
   "feed_sources": [

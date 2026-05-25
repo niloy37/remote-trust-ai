@@ -235,6 +235,7 @@ class OpportunityFeedSummary(BaseModel):
     scheduler_enabled: bool
     ingestion_status: str
     last_run_at: str | None = None
+    opportunities_available: int = 0
     jobs_collected: int
     jobs_deduped: int
     preprocessing_rejected: int = 0

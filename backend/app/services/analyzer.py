@@ -50,8 +50,6 @@ def verdict_for(final_score: int) -> str:
 
     return "Risky"
 
-
-def recommended_action_for(final_score: int) -> str:
 def recommended_action_for(
     final_score: int,
     classification_label: str | None = None,
@@ -78,14 +76,6 @@ def recommended_action_for(
     if final_score >= 80 and classification_label == "LEGIT_REMOTE":
         return "Apply"
     return "Review carefully"
-
-    if final_score >= 80:
-        return "Apply"
-
-    if final_score >= 40:
-        return "Review carefully"
-
-    return "Avoid"
 
 def apply_graph_adjustments(scores: Scores, graph_verification: GraphVerification, had_existing_red_flags: bool) -> Scores:
     if graph_verification.status == "Strong graph evidence":

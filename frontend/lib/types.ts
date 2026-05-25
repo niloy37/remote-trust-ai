@@ -185,6 +185,7 @@ export interface OpportunityFeedSummary {
   scheduler_enabled: boolean;
   ingestion_status: string;
   last_run_at: string | null;
+  opportunities_available: number;
   jobs_collected: number;
   jobs_deduped: number;
   preprocessing_rejected: number;
