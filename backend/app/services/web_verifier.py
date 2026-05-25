@@ -10,6 +10,21 @@ from functools import lru_cache
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 from urllib.request import Request, urlopen
 
+try:  # Optional in local ad-hoc test environments; installed in Docker.
+    import tldextract
+except Exception:  # pragma: no cover
+    tldextract = None
+
+try:
+    from rapidfuzz import fuzz
+except Exception:  # pragma: no cover
+    fuzz = None
+
+try:
+    from ml.feature_extractor import company_candidate_rejection_reason
+except Exception:  # pragma: no cover - keep verifier importable if ml path is unavailable.
+    company_candidate_rejection_reason = None
+
 
 REVIEW_DOMAINS = {
     "glassdoor.com",
@@ -91,22 +106,84 @@ def domain_for(url: str) -> str:
     return urlparse(url).netloc.lower().removeprefix("www.")
 
 
+def registered_domain_for(url: str) -> str:
+    domain = domain_for(url)
+    if not domain:
+        return ""
+    if tldextract:
+        extracted = tldextract.extract(domain)
+        if extracted.domain and extracted.suffix:
+            return f"{extracted.domain}.{extracted.suffix}"
+    parts = domain.split(".")
+    return ".".join(parts[-2:]) if len(parts) >= 2 else domain
+
+
+def token_set_ratio(left: str, right: str) -> int:
+    if not left or not right:
+        return 0
+    if fuzz:
+        return int(fuzz.token_set_ratio(left, right))
+    left_tokens = set(re.findall(r"[a-z0-9]+", left.lower()))
+    right_tokens = set(re.findall(r"[a-z0-9]+", right.lower()))
+    if not left_tokens or not right_tokens:
+        return 0
+    overlap = len(left_tokens & right_tokens)
+    return round(200 * overlap / (len(left_tokens) + len(right_tokens)))
+
+
+def company_candidate_looks_valid(company: str | None) -> bool:
+    if not company:
+        return False
+    if company_candidate_rejection_reason:
+        return company_candidate_rejection_reason(company) is None
+    return bool(re.search(r"[A-Z]", company)) and "," not in company and len(company) <= 70
+
+
+def source_matches_company(company: str, title: str, url: str, snippet: str) -> bool:
+    company_slug = slug(company)
+    if not company_slug or len(company_slug) < 3:
+        return False
+    domain = registered_domain_for(url)
+    domain_slug = slug(domain.split(".")[0])
+    host_slug = slug(domain_for(url).split(":")[0])
+    text = f"{title} {snippet}".lower()
+    text_slug = slug(text)
+
+    if company_slug in host_slug or company_slug in domain_slug:
+        return True
+    if company_slug in text_slug:
+        return True
+    return token_set_ratio(company, f"{title} {snippet} {domain}") >= 86
+
+
 def classify_source(company: str, title: str, url: str, snippet: str) -> str:
     domain = domain_for(url)
     text = f"{title} {snippet} {url}".lower()
-    company_slug = slug(company)
-    domain_slug = slug(domain.split(":")[0])
-    if any(term in text for term in RISK_TERMS):
+    company_related = source_matches_company(company, title, url, snippet)
+    if company_related and any(term in text for term in RISK_TERMS):
         return "risk_report"
-    if any(domain.endswith(review_domain) for review_domain in REVIEW_DOMAINS):
+    if company_related and any(domain.endswith(review_domain) for review_domain in REVIEW_DOMAINS):
         return "employee_or_company_review"
-    if any(domain.endswith(profile_domain) for profile_domain in PROFILE_DOMAINS):
+    if company_related and any(domain.endswith(profile_domain) for profile_domain in PROFILE_DOMAINS):
         return "company_profile"
-    if company_slug and company_slug in domain_slug and not any(domain.endswith(review_domain) for review_domain in REVIEW_DOMAINS):
-        return "official_company_site"
-    if "career" in text or "jobs" in text:
+    if company_related and not any(domain.endswith(review_domain) for review_domain in REVIEW_DOMAINS):
+        company_slug = slug(company)
+        domain_slug = slug(domain.split(":")[0])
+        if company_slug and company_slug in domain_slug:
+            return "official_company_site"
+    if company_related and ("career" in text or "jobs" in text):
         return "career_page"
     return "general_web_result"
+
+
+def limited_company_verification(company: str | None, searched_at: str, warning: str) -> CompanyVerification:
+    return CompanyVerification(
+        company=company,
+        status="Limited evidence",
+        score=35,
+        searched_at=searched_at,
+        warnings=[warning],
+    )
 
 
 def ddg_results(query: str, timeout: float) -> list[WebSource]:
@@ -304,5 +381,28 @@ def verify_company_web_cached(company: str, apply_url: str | None) -> CompanyVer
     )
 
 
-def verify_company_web(company: str | None, apply_url: str | None) -> CompanyVerification:
+def verify_company_web(
+    company: str | None,
+    apply_url: str | None,
+    company_confidence: float | None = None,
+    company_evidence: str | None = None,
+) -> CompanyVerification:
+    searched_at = now_iso()
+    skip_warning = "Company name could not be verified from the posting, so live company verification was skipped."
+    if not company:
+        return limited_company_verification(None, searched_at, skip_warning)
+    if not company_candidate_looks_valid(company):
+        return limited_company_verification(company, searched_at, skip_warning)
+    if company_confidence is not None and company_confidence < 0.70:
+        return CompanyVerification(
+            company=company,
+            status="Limited evidence",
+            score=40,
+            searched_at=searched_at,
+            warnings=[
+                skip_warning,
+                f"Company extraction confidence was {company_confidence:.2f}"
+                + (f" from {company_evidence}" if company_evidence else ""),
+            ],
+        )
     return verify_company_web_cached(company or "", apply_url)

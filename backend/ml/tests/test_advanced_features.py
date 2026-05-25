@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ml.advanced_features import extract_remote_restrictions
-from ml.feature_extractor import extract_features
+from backend.ml.advanced_features import extract_remote_restrictions
+from backend.ml.feature_extractor import extract_features
 
 
 def test_extracts_allowed_country_timezone_and_authorization() -> None:
@@ -25,6 +25,24 @@ def test_extracts_hybrid_language() -> None:
 
     assert restrictions.onsite_or_hybrid_requirement
     assert restrictions.source_snippets
+
+
+def test_flexible_work_options_do_not_create_hybrid_requirement() -> None:
+    text = "Benefits include flexible work options (office, hybrid or remote)."
+    extracted = extract_features(text)
+    restrictions = extract_remote_restrictions(text, extracted)
+
+    assert extracted.remote_type == "Flexible remote option"
+    assert restrictions.onsite_or_hybrid_requirement is None
+
+
+def test_choose_remote_hybrid_or_office_is_optional() -> None:
+    text = "Employees can choose remote, hybrid, or office options based on preference."
+    extracted = extract_features(text)
+    restrictions = extract_remote_restrictions(text, extracted)
+
+    assert extracted.remote_type == "Flexible remote option"
+    assert restrictions.onsite_or_hybrid_requirement is None
 
 
 def test_ignores_url_encoded_remote_filter_noise() -> None:

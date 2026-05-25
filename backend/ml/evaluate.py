@@ -8,7 +8,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 try:
     from .train_baseline import ARTIFACT, load_dataset
 except ImportError:  # Allows `python ml/evaluate.py` during quick local experiments.
-    from train_baseline import ARTIFACT, load_dataset
+    from backend.ml.train_baseline import ARTIFACT, load_dataset
 
 
 def main(model_path: Path = ARTIFACT) -> None:

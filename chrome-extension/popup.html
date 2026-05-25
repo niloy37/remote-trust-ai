@@ -12,12 +12,12 @@
         <div class="mark" aria-hidden="true">RT</div>
         <div>
           <h1>RemoteTrust AI</h1>
-          <p>LinkedIn / Indeed job verifier</p>
+          <p>Remote job safety check</p>
         </div>
       </header>
 
       <section id="unsupported" class="notice hidden">
-        Open a LinkedIn or Indeed job page, then run RemoteTrust AI from this popup.
+        Open a supported individual job posting, then run RemoteTrust AI from this popup.
       </section>
 
       <section class="panel">
@@ -51,7 +51,7 @@
         <label class="consent">
           <input id="consent" type="checkbox" />
           <span>
-            I consent to read the visible job content from this LinkedIn or Indeed page and send it to my local RemoteTrust AI backend for analysis.
+            I consent to read the visible job content from this page and check it with RemoteTrust AI.
           </span>
         </label>
 
@@ -62,56 +62,59 @@
 
       <section id="result" class="result hidden">
         <div class="score-row">
-          <div class="score-ring">
-            <strong id="finalScore">0</strong>
-            <span>/100</span>
+          <div class="score-wrap">
+            <div class="score-ring" title="Overall trust score based on company, remote, applicant-fit, and quality checks.">
+              <strong id="finalScore">0</strong>
+              <span>/100</span>
+            </div>
+            <span class="info score-info" title="Overall trust score based on company, remote, applicant-fit, and quality checks.">i</span>
           </div>
           <div>
             <span id="verdict" class="badge">Verdict</span>
             <h2 id="jobTitle">Untitled role</h2>
             <p id="company">Company not detected</p>
-            <p id="classification" class="classification">Classification pending</p>
+            <p id="classification" class="classification">Check pending</p>
             <p id="titleValidation" class="title-validation">Title check pending</p>
             <p id="companyVerification" class="company-verification">Web check pending</p>
           </div>
         </div>
 
         <div class="grid">
-          <div><span>Legitimacy</span><strong id="legitimacy">0</strong></div>
-          <div><span>Remote</span><strong id="remote">0</strong></div>
-          <div><span>Eligibility</span><strong id="eligibility">0</strong></div>
-          <div><span>Quality</span><strong id="quality">0</strong></div>
+          <div><span>Legitimacy <span class="info" title="Checks company identity, contact details, application links, and suspicious requests.">i</span></span><strong id="legitimacy">0</strong></div>
+          <div><span>Remote <span class="info" title="Checks whether the role appears genuinely remote and office-free.">i</span></span><strong id="remote">0</strong></div>
+          <div><span>Eligibility <span class="info" title="Checks country, timezone, and work authorization fit.">i</span></span><strong id="eligibility">0</strong></div>
+          <div><span>Quality <span class="info" title="Checks role clarity, skills, pay, benefits, and hiring process details.">i</span></span><strong id="quality">0</strong></div>
         </div>
 
         <p id="explanation" class="explanation"></p>
 
         <div class="classification-card">
           <div>
-            <span>ML confidence</span>
-            <strong id="classificationConfidence">0%</strong>
+            <span>Recommendation <span class="info" title="Suggested next step based on the checks.">i</span></span>
+            <strong id="recommendedAction">Review</strong>
           </div>
           <div>
-            <span>Layer status</span>
-            <strong id="classificationStatus">Fallback</strong>
+            <span>Evidence strength <span class="info" title="How much supporting information was found.">i</span></span>
+            <strong id="evidenceQuality">Review</strong>
           </div>
         </div>
 
-        <h3>Remote restrictions</h3>
+        <h3>Remote work details</h3>
         <ul id="remoteRestrictions"></ul>
 
-        <h3>ML evidence</h3>
+        <h3>Why this result</h3>
         <ul id="classificationEvidence"></ul>
 
-        <h3>Red flags</h3>
+        <h3>Reasons to be careful</h3>
         <ul id="redFlags"></ul>
 
-        <h3>Positive signals</h3>
+        <h3>Reasons it looks trustworthy</h3>
         <ul id="positiveSignals"></ul>
 
-        <h3>Web evidence</h3>
+        <h3>Sources checked</h3>
         <ul id="webSources"></ul>
 
-        <a id="dashboardLink" href="http://localhost:3000/dashboard" target="_blank" rel="noreferrer">Open dashboard</a>
+        <a id="dashboardLink" href="https://piyush99755-remote-trust-ai.vercel.app/dashboard" target="_blank" rel="noreferrer">Open dashboard</a>
       </section>
     </main>
 

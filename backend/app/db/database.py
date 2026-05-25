@@ -57,8 +57,10 @@ def init_db() -> None:
                 extracted_json TEXT NOT NULL,
                 red_flags_json TEXT NOT NULL,
                 positive_signals_json TEXT NOT NULL,
+                extraction_warnings_json TEXT,
                 explanation TEXT NOT NULL,
                 recommended_action TEXT NOT NULL,
+                source_fingerprint TEXT,
                 created_at TEXT NOT NULL
             )
             """
@@ -72,6 +74,17 @@ def init_db() -> None:
             connection.execute("ALTER TABLE jobs ADD COLUMN graph_verification_json TEXT")
         if "classification_json" not in columns:
             connection.execute("ALTER TABLE jobs ADD COLUMN classification_json TEXT")
+        if "extraction_warnings_json" not in columns:
+            connection.execute("ALTER TABLE jobs ADD COLUMN extraction_warnings_json TEXT")
+        if "source_fingerprint" not in columns:
+            connection.execute("ALTER TABLE jobs ADD COLUMN source_fingerprint TEXT")
+        connection.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_source_fingerprint
+            ON jobs(source_fingerprint)
+            WHERE source_fingerprint IS NOT NULL
+            """
+        )
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS graph_nodes (
@@ -123,45 +136,59 @@ def reset_db() -> None:
     init_db()
 
 
-def insert_job(request: AnalyzeRequest, response: AnalyzeResponse) -> JobRecord:
+def insert_job(request: AnalyzeRequest, response: AnalyzeResponse, source_fingerprint: str | None = None) -> JobRecord:
+    if source_fingerprint:
+        existing = get_job_by_source_fingerprint(source_fingerprint)
+        if existing:
+            return existing
+
     created_at = utc_now()
     with get_connection() as connection:
-        connection.execute(
-            """
-            INSERT INTO jobs (
-                id, job_url, job_description, applicant_country, desired_role,
-                final_score, verdict, legitimacy_score, remote_authenticity_score,
-                global_eligibility_score, job_quality_score, title_validation_json, company_verification_json,
-                graph_verification_json, classification_json, extracted_json,
-                red_flags_json, positive_signals_json, explanation,
-                recommended_action, created_at
+        try:
+            connection.execute(
+                """
+                INSERT INTO jobs (
+                    id, job_url, job_description, applicant_country, desired_role,
+                    final_score, verdict, legitimacy_score, remote_authenticity_score,
+                    global_eligibility_score, job_quality_score, title_validation_json, company_verification_json,
+                    graph_verification_json, classification_json, extracted_json,
+                    red_flags_json, positive_signals_json, extraction_warnings_json, explanation,
+                    recommended_action, source_fingerprint, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    response.job_id,
+                    request.job_url,
+                    request.job_description,
+                    request.applicant_country,
+                    request.desired_role,
+                    response.final_score,
+                    response.verdict,
+                    response.scores.legitimacy,
+                    response.scores.remote_authenticity,
+                    response.scores.global_eligibility,
+                    response.scores.job_quality,
+                    response.title_validation.model_dump_json(),
+                    response.company_verification.model_dump_json(),
+                    response.graph_verification.model_dump_json(),
+                    response.classification.model_dump_json(),
+                    response.extracted.model_dump_json(),
+                    json.dumps(response.red_flags),
+                    json.dumps(response.positive_signals),
+                    json.dumps(response.extraction_warnings),
+                    response.explanation,
+                    response.recommended_action,
+                    source_fingerprint,
+                    created_at,
+                ),
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                response.job_id,
-                request.job_url,
-                request.job_description,
-                request.applicant_country,
-                request.desired_role,
-                response.final_score,
-                response.verdict,
-                response.scores.legitimacy,
-                response.scores.remote_authenticity,
-                response.scores.global_eligibility,
-                response.scores.job_quality,
-                response.title_validation.model_dump_json(),
-                response.company_verification.model_dump_json(),
-                response.graph_verification.model_dump_json(),
-                response.classification.model_dump_json(),
-                response.extracted.model_dump_json(),
-                json.dumps(response.red_flags),
-                json.dumps(response.positive_signals),
-                response.explanation,
-                response.recommended_action,
-                created_at,
-            ),
-        )
+        except sqlite3.IntegrityError:
+            if source_fingerprint:
+                existing = get_job_by_source_fingerprint(source_fingerprint)
+                if existing:
+                    return existing
+            raise
         connection.commit()
     return JobRecord(**response.model_dump(), **request.model_dump(), created_at=created_at)
 
@@ -172,6 +199,7 @@ def row_to_job(row: sqlite3.Row) -> JobRecord:
     company_verification_json = row["company_verification_json"] if "company_verification_json" in row.keys() else None
     graph_verification_json = row["graph_verification_json"] if "graph_verification_json" in row.keys() else None
     classification_json = row["classification_json"] if "classification_json" in row.keys() else None
+    extraction_warnings_json = row["extraction_warnings_json"] if "extraction_warnings_json" in row.keys() else None
     title_validation = (
         TitleValidation(**json.loads(title_validation_json))
         if title_validation_json
@@ -260,6 +288,7 @@ def row_to_job(row: sqlite3.Row) -> JobRecord:
         classification=classification,
         red_flags=json.loads(row["red_flags_json"]),
         positive_signals=json.loads(row["positive_signals_json"]),
+        extraction_warnings=json.loads(extraction_warnings_json) if extraction_warnings_json else [],
         explanation=row["explanation"],
         recommended_action=row["recommended_action"],
         created_at=row["created_at"],
@@ -275,6 +304,12 @@ def list_jobs() -> list[JobRecord]:
 def get_job(job_id: str) -> JobRecord | None:
     with get_connection() as connection:
         row = connection.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    return row_to_job(row) if row else None
+
+
+def get_job_by_source_fingerprint(source_fingerprint: str) -> JobRecord | None:
+    with get_connection() as connection:
+        row = connection.execute("SELECT * FROM jobs WHERE source_fingerprint = ?", (source_fingerprint,)).fetchone()
     return row_to_job(row) if row else None
 
 

@@ -8,6 +8,8 @@ from typing import Any
 class ExtractedJob:
     job_title: str | None = None
     company: str | None = None
+    company_confidence: float | None = None
+    company_evidence: str | None = None
     salary: str | None = None
     location: str | None = None
     remote_type: str | None = None
@@ -20,12 +22,15 @@ class ExtractedJob:
     contact_methods: list[str] = field(default_factory=list)
     suspicious_contact_methods: list[str] = field(default_factory=list)
     scam_phrases: list[str] = field(default_factory=list)
+    extraction_warnings: list[str] = field(default_factory=list)
 
     def public_dict(self) -> dict[str, Any]:
         data = asdict(self)
         return {
             "job_title": data["job_title"],
             "company": data["company"],
+            "company_confidence": data["company_confidence"],
+            "company_evidence": data["company_evidence"],
             "salary": data["salary"],
             "location": data["location"],
             "remote_type": data["remote_type"],
@@ -73,6 +78,7 @@ class AnalysisResult:
     title_validation: TitleValidation
     red_flags: list[str]
     positive_signals: list[str]
+    extraction_warnings: list[str]
     explanation: str
     recommended_action: str
 

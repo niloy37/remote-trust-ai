@@ -1,5 +1,48 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
-const SUPPORTED_HOSTS = [];
+const API_BASE_URL = "https://remote-trust-ai.onrender.com";
+const SUPPORTED_HOSTS = [
+  "linkedin.com",
+  "indeed.com",
+  "greenhouse.io",
+  "lever.co",
+  "ashbyhq.com",
+  "workable.com",
+  "smartrecruiters.com",
+  "flexjobs.com",
+  "remoteok.com",
+  "weworkremotely.com",
+  "remotive.com",
+  "wellfound.com"
+];
+
+const CLASSIFICATION_LABELS = {
+  LEGIT_REMOTE: "Looks Trustworthy",
+  COUNTRY_RESTRICTED_REMOTE: "Location Requirements",
+  HYBRID_OR_LOCATION_BOUND: "Not Fully Remote",
+  LOW_QUALITY_UNVERIFIED: "Needs More Evidence",
+  LIKELY_SCAM: "High Risk"
+};
+
+const TECHNICAL_DIAGNOSTICS = [
+  /\bNeo4j\b/i,
+  /\bSQLite\b/i,
+  /\blocal .*backend\b/i,
+  /\bRemoteTrust AI backend\b/i,
+  /\btraceback\b/i,
+  /\bstack trace\b/i,
+  /\bmodule not found\b/i,
+  /\bbackend returned\b/i,
+  /\brequest failed with status\b/i,
+  /\bgraph database unavailable\b/i,
+  /\bgraph backend unavailable\b/i,
+  /\brelationship memory\b/i,
+  /\btrained artifacts?\b/i,
+  /\btransformer artifact\b/i,
+  /\bstructured ML artifact\b/i,
+  /\bmeta-classifier\b/i,
+  /\blayer_scores?\b/i,
+  /\bprobabilities\b/i,
+  /\bfallback\b/i
+];
 
 const els = {
   unsupported: document.getElementById("unsupported"),
@@ -12,8 +55,8 @@ const els = {
   finalScore: document.getElementById("finalScore"),
   verdict: document.getElementById("verdict"),
   classification: document.getElementById("classification"),
-  classificationConfidence: document.getElementById("classificationConfidence"),
-  classificationStatus: document.getElementById("classificationStatus"),
+  recommendedAction: document.getElementById("recommendedAction"),
+  evidenceQuality: document.getElementById("evidenceQuality"),
   remoteRestrictions: document.getElementById("remoteRestrictions"),
   classificationEvidence: document.getElementById("classificationEvidence"),
   jobTitle: document.getElementById("jobTitle"),
@@ -36,11 +79,7 @@ let activeSupported = false;
 function isSupportedUrl(url) {
   try {
     const parsed = new URL(url);
-
-    return (
-       parsed.protocol === "https:" ||
-       parsed.protocol.startsWith("http")
-    );
+    return parsed.protocol === "https:" && SUPPORTED_HOSTS.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`));
   } catch {
     return false;
   }
@@ -103,8 +142,64 @@ function readableLabel(value) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function displayVerdict(value) {
+  return value === "Caution" ? "Proceed with Caution" : value || "Review Needed";
+}
+
+function displayClassificationLabel(value) {
+  return CLASSIFICATION_LABELS[value] || readableLabel(value);
+}
+
+function isTechnicalDiagnostic(value) {
+  const text = value || "";
+  return TECHNICAL_DIAGNOSTICS.some((pattern) => pattern.test(text));
+}
+
+function userFacingText(value) {
+  if (!value || isTechnicalDiagnostic(value)) return "";
+  return (value || "")
+    .replace(/\bLEGIT_REMOTE\b|\bLegit Remote\b/gi, CLASSIFICATION_LABELS.LEGIT_REMOTE)
+    .replace(/\bCOUNTRY_RESTRICTED_REMOTE\b|\bCountry Restricted Remote\b/gi, CLASSIFICATION_LABELS.COUNTRY_RESTRICTED_REMOTE)
+    .replace(/\bHYBRID_OR_LOCATION_BOUND\b|\bHybrid Or Location Bound\b/gi, CLASSIFICATION_LABELS.HYBRID_OR_LOCATION_BOUND)
+    .replace(/\bLOW_QUALITY_UNVERIFIED\b|\bLow Quality Unverified\b/gi, CLASSIFICATION_LABELS.LOW_QUALITY_UNVERIFIED)
+    .replace(/\bLIKELY_SCAM\b|\bLikely Scam\b/gi, CLASSIFICATION_LABELS.LIKELY_SCAM)
+    .replace(/Company extraction confidence was [\d.]+/gi, "Company details need another look")
+    .replace(/\s+with\s+\d+%\s+confidence(?=\.)/gi, "")
+    .replace(/\s+with\s+\d+%\s+confidence\b/gi, "")
+    .replace(/\b\d+%\s+confidence\b/gi, "supporting evidence")
+    .replace(/\bconfidence\b/gi, "evidence")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function cleanEvidenceItems(items, emptyText) {
+  const values = Array.from(new Set((items || []).map(userFacingText).filter(Boolean)));
+  return values.length ? values : [emptyText];
+}
+
+function setTag(node, text, tooltip) {
+  node.textContent = "";
+  node.appendChild(document.createTextNode(text));
+  if (tooltip) {
+    node.title = tooltip;
+    const info = document.createElement("span");
+    info.className = "info";
+    info.title = tooltip;
+    info.textContent = "i";
+    node.appendChild(info);
+  }
+}
+
+function friendlyErrorMessage(error) {
+  const message = error instanceof Error ? error.message : "";
+  if (/consent/i.test(message)) return message;
+  if (/extract|read/i.test(message)) return "We could not read the job posting on this page. Try opening the full job post and running the check again.";
+  if (/protected|blocked|search\/list|collection|crawler/i.test(message)) return "We could not read that job page directly. Try opening the full job post or use the web app.";
+  return "We could not analyze this job right now. Please try again.";
+}
+
 function cleanRestrictionText(value) {
-  const text = (value || "").replace(/\s+/g, " ").trim();
+  const text = userFacingText(value).replace(/\s+/g, " ").trim();
   if (!text) return null;
   const lower = text.toLowerCase();
   if (
@@ -120,13 +215,13 @@ function cleanRestrictionText(value) {
 function classificationClass(label) {
   if (label === "LEGIT_REMOTE") return "classification legit";
   if (label === "LIKELY_SCAM") return "classification scam";
-  if (label === "COUNTRY_RESTRICTED_REMOTE" || label === "HYBRID_OR_LOCATION_BOUND") return "classification restricted";
+  if (label === "COUNTRY_RESTRICTED_REMOTE" || label === "HYBRID_OR_LOCATION_BOUND" || label === "LOW_QUALITY_UNVERIFIED") return "classification restricted";
   return "classification unverified";
 }
 
 function remoteRestrictionItems(classification) {
   const restrictions = classification?.evidence?.remote_restrictions;
-  if (!restrictions) return ["No advanced remote restriction evidence was returned."];
+  if (!restrictions) return ["No remote restriction evidence was returned."];
 
   const items = [];
   const seen = new Set();
@@ -143,25 +238,36 @@ function remoteRestrictionItems(classification) {
   if (restrictions.excluded_countries?.length) items.push(`Excluded: ${restrictions.excluded_countries.join(", ")}`);
   addText("Timezone", restrictions.timezone_requirements);
   addText("Authorization", restrictions.work_authorization);
-  addText("Hybrid/onsite", restrictions.onsite_or_hybrid_requirement);
+  addText("Onsite or hybrid", restrictions.onsite_or_hybrid_requirement);
   (restrictions.ambiguous_location_language || []).forEach((value) => addText("Ambiguous", value));
   (restrictions.source_snippets || []).forEach((value) => addText("Evidence", value));
   return items.length ? items : ["No explicit remote restriction detected."];
 }
 
 function classificationEvidenceItems(classification) {
-  if (!classification?.evidence) return ["Advanced classification evidence was not returned by the backend."];
-  return [
+  if (!classification?.evidence) return ["No additional decision evidence was returned."];
+  return cleanEvidenceItems([
     ...(classification.evidence.confidence_factors || []),
     ...(classification.evidence.top_red_flags || []).slice(0, 2),
     ...(classification.evidence.positive_signals || []).slice(0, 2)
-  ].filter(Boolean);
+  ].filter(Boolean), "No additional decision evidence was returned.");
+}
+
+function evidenceQuality(result) {
+  const companyStatus = result.company_verification?.status;
+  const titleVerdict = result.title_validation?.verdict;
+  if (result.extraction_warnings?.length || companyStatus === "Risk signals") return "Needs review";
+  if ((companyStatus === "Strong evidence" || companyStatus === "Some evidence") && (titleVerdict === "Recognized" || titleVerdict === "Plausible")) {
+    return result.red_flags?.length ? "Good" : "Strong";
+  }
+  if (result.positive_signals?.length >= 2 || result.classification?.evidence?.confidence_factors?.length) return "Good";
+  return "Limited";
 }
 
 function renderResult(result) {
   els.result.classList.remove("hidden");
   els.finalScore.textContent = result.final_score;
-  els.verdict.textContent = result.verdict;
+  setTag(els.verdict, displayVerdict(result.verdict), "Overall recommendation level for this job.");
   els.verdict.className = "badge";
   if (result.verdict === "Caution") els.verdict.classList.add("caution");
   if (result.verdict === "Risky") els.verdict.classList.add("risky");
@@ -169,39 +275,35 @@ function renderResult(result) {
   els.company.textContent = result.extracted.company || "Company not detected";
   const classification = result.classification;
   if (classification) {
-    els.classification.textContent = `${readableLabel(classification.label)} (${Math.round(classification.confidence * 100)}%)`;
+    setTag(els.classification, displayClassificationLabel(classification.label), "Plain-language summary of the job check.");
     els.classification.className = classificationClass(classification.label);
-    els.classificationConfidence.textContent = `${Math.round(classification.confidence * 100)}%`;
-    els.classificationStatus.textContent = classification.status || "fallback";
     renderList(els.remoteRestrictions, remoteRestrictionItems(classification), "No explicit remote restriction detected.");
-    renderList(els.classificationEvidence, classificationEvidenceItems(classification), "No ML evidence returned.");
+    renderList(els.classificationEvidence, classificationEvidenceItems(classification), "No additional decision evidence was returned.");
   } else {
-    els.classification.textContent = "Advanced classification unavailable";
+    setTag(els.classification, "Decision rationale unavailable", "Plain-language summary of the job check.");
     els.classification.className = "classification unverified";
-    els.classificationConfidence.textContent = "0%";
-    els.classificationStatus.textContent = "Unavailable";
-    renderList(els.remoteRestrictions, [], "No advanced remote restriction evidence was returned.");
-    renderList(els.classificationEvidence, [], "No ML evidence returned.");
+    renderList(els.remoteRestrictions, [], "No remote restriction evidence was returned.");
+    renderList(els.classificationEvidence, [], "No additional decision evidence was returned.");
   }
   const titleValidation = result.title_validation;
   if (titleValidation) {
-    els.titleValidation.textContent = `Title: ${titleValidation.verdict} (${titleValidation.score}/100)`;
+    setTag(els.titleValidation, `Role title: ${titleValidation.verdict} (${titleValidation.score}/100)`, "Whether the role title looks like a real job title.");
     els.titleValidation.className = "title-validation";
     if (titleValidation.verdict === "Unusual") els.titleValidation.classList.add("unusual");
     if (titleValidation.verdict === "Suspicious") els.titleValidation.classList.add("suspicious");
   } else {
-    els.titleValidation.textContent = "Title check unavailable";
+    setTag(els.titleValidation, "Role title check unavailable", "Whether the role title looks like a real job title.");
     els.titleValidation.className = "title-validation unusual";
   }
   const companyVerification = result.company_verification;
   if (companyVerification) {
-    els.companyVerification.textContent = `Web: ${companyVerification.status} (${companyVerification.score}/100)`;
+    setTag(els.companyVerification, `Company: ${companyVerification.status} (${companyVerification.score}/100)`, "How much public evidence supports the company.");
     els.companyVerification.className = "company-verification";
     if (companyVerification.status === "Limited evidence") els.companyVerification.classList.add("limited");
     if (companyVerification.status === "Risk signals") els.companyVerification.classList.add("risk");
     renderWebSources(els.webSources, companyVerification.sources);
   } else {
-    els.companyVerification.textContent = "Web check unavailable";
+    setTag(els.companyVerification, "Company check unavailable", "How much public evidence supports the company.");
     els.companyVerification.className = "company-verification limited";
     renderWebSources(els.webSources, []);
   }
@@ -209,9 +311,11 @@ function renderResult(result) {
   els.remote.textContent = result.scores.remote_authenticity;
   els.eligibility.textContent = result.scores.global_eligibility;
   els.quality.textContent = result.scores.job_quality;
-  els.explanation.textContent = result.explanation;
-  renderList(els.redFlags, result.red_flags, "No major red flags detected.");
-  renderList(els.positiveSignals, result.positive_signals, "Limited positive signals detected.");
+  els.recommendedAction.textContent = result.recommended_action || classification?.recommendation || "Review carefully";
+  els.evidenceQuality.textContent = evidenceQuality(result);
+  els.explanation.textContent = userFacingText(result.explanation);
+  renderList(els.redFlags, cleanEvidenceItems(result.red_flags, "No major application concerns detected."), "No major application concerns detected.");
+  renderList(els.positiveSignals, cleanEvidenceItems(result.positive_signals, "Limited trust evidence detected."), "Limited trust evidence detected.");
 
   const degrees = result.final_score * 3.6;
   document.querySelector(".score-ring").style.background = `conic-gradient(${scoreColor(result.final_score)} ${degrees}deg, rgba(148, 163, 184, 0.18) 0deg)`;
@@ -231,31 +335,9 @@ async function extractFromTab(tab) {
   }
 }
 
-function isSearchPage(url) {
-
-  const lower = url.toLowerCase();
-
-  return (
-    lower.includes("/jobs/search") ||
-    lower.includes("/collections/") ||
-    lower.includes("/recommended/") ||
-    lower.includes("/results/")
-  );
-}
-
 async function analyzeCurrentPage() {
 
   if (!activeTab || !activeSupported) return;
-
-  if (isSearchPage(activeTab.url)) {
-
-    setStatus(
-      "Please open an individual job posting for best analysis quality.",
-      "error"
-    );
-
-    return;
-  }
 
   if (!els.consent.checked) {
 
@@ -283,7 +365,7 @@ async function analyzeCurrentPage() {
       );
     }
 
-    setStatus("Analyzing with local RemoteTrust AI backend...");
+    setStatus("Checking this job posting...");
 
     const response = await fetch(`${API_BASE_URL}/analyze`, {
       method: "POST",
@@ -301,7 +383,7 @@ async function analyzeCurrentPage() {
       const body = await response.json().catch(() => ({}));
 
       throw new Error(
-        body.detail || `Backend returned ${response.status}`
+        body.detail || `Request failed with status ${response.status}`
       );
     }
 
@@ -321,9 +403,7 @@ async function analyzeCurrentPage() {
   } catch (error) {
 
     setStatus(
-      error instanceof Error
-        ? error.message
-        : "Could not analyze this page.",
+      friendlyErrorMessage(error),
       "error"
     );
 
@@ -337,12 +417,15 @@ async function init() {
 
   activeTab = await getActiveTab();
 
-  const stored = await chrome.storage.local.get(
-  "remoteTrustConsent"
-);
+  const stored = await chrome.storage.local.get([
+    "remoteTrustConsent",
+    "remoteTrustApplicantCountry",
+    "remoteTrustDesiredRole"
+  ]);
 
-els.consent.checked =
-  stored.remoteTrustConsent || false;
+  els.consent.checked = stored.remoteTrustConsent || false;
+  if (stored.remoteTrustApplicantCountry) els.country.value = stored.remoteTrustApplicantCountry;
+  if (stored.remoteTrustDesiredRole) els.desiredRole.value = stored.remoteTrustDesiredRole;
 
   activeSupported = Boolean(
     activeTab?.url &&
@@ -370,6 +453,18 @@ els.consent.checked =
     "Ready to analyze this job page."
   );
 }
+
+els.country.addEventListener("change", async () => {
+  await chrome.storage.local.set({
+    remoteTrustApplicantCountry: els.country.value
+  });
+});
+
+els.desiredRole.addEventListener("input", async () => {
+  await chrome.storage.local.set({
+    remoteTrustDesiredRole: els.desiredRole.value
+  });
+});
 
 els.consent.addEventListener("change", async () => {
 

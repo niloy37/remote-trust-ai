@@ -52,6 +52,32 @@ def verdict_for(final_score: int) -> str:
 
 
 def recommended_action_for(final_score: int) -> str:
+def recommended_action_for(
+    final_score: int,
+    classification_label: str | None = None,
+    red_flags: list[str] | None = None,
+    company_verification: CompanyVerification | None = None,
+    graph_verification: GraphVerification | None = None,
+) -> str:
+    red_text = " ".join(red_flags or []).lower()
+    severe_risk = (
+        classification_label == "LIKELY_SCAM"
+        or final_score < 45
+        or "payment request" in red_text
+        or "gift card" in red_text
+        or "wire transfer" in red_text
+        or "suspicious personal recruiter contact" in red_text
+        or company_verification is not None
+        and company_verification.status == "Risk signals"
+        or graph_verification is not None
+        and graph_verification.status == "Risk signals"
+        and final_score < 55
+    )
+    if severe_risk:
+        return "Avoid"
+    if final_score >= 80 and classification_label == "LEGIT_REMOTE":
+        return "Apply"
+    return "Review carefully"
 
     if final_score >= 80:
         return "Apply"
@@ -160,7 +186,12 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     if fetch_warning:
         result.red_flags.append(fetch_warning)
 
-    company_verification_raw = verify_company_web(result.extracted.company, result.extracted.apply_url)
+    company_verification_raw = verify_company_web(
+        result.extracted.company,
+        result.extracted.apply_url,
+        result.extracted.company_confidence,
+        result.extracted.company_evidence,
+    )
     company_verification = CompanyVerification(**company_verification_raw.model_dict())
     scores = Scores(**result.scores.as_dict())
     if company_verification.status == "Strong evidence":
@@ -195,7 +226,6 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
     ):
         final_score = 60
     verdict = verdict_for(final_score)
-    recommended_action = recommended_action_for(final_score)
     classification = classify_job(
         job_description=analysis_description,
         extracted=result.extracted,
@@ -204,6 +234,13 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
         positive_signals=result.positive_signals,
         company_verification_score=company_verification.score,
         graph_verification=graph_verification,
+    )
+    recommended_action = recommended_action_for(
+        final_score,
+        classification.label,
+        result.red_flags,
+        company_verification,
+        graph_verification,
     )
 
     return AnalyzeResponse(
@@ -218,6 +255,7 @@ def analyze(request: AnalyzeRequest) -> AnalyzeResponse:
         classification=classification.as_dict(),
         red_flags=result.red_flags,
         positive_signals=result.positive_signals,
+        extraction_warnings=result.extraction_warnings,
         explanation=f"{build_explanation(scores, verdict, result.red_flags, result.positive_signals, graph_verification)} {classification.evidence.explanation}",
         recommended_action=recommended_action,
     )

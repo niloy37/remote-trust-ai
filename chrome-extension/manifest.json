@@ -2,21 +2,44 @@
   "manifest_version": 3,
   "name": "RemoteTrust AI Job Reader",
   "version": "0.1.0",
-  "description": "Read LinkedIn or Indeed job pages with user consent and analyze remote-job trust signals.",
+  "description": "Read supported job pages with user consent and analyze remote-job trust signals.",
   "action": {
     "default_title": "RemoteTrust AI",
     "default_popup": "popup.html"
   },
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": [
-    "https://*/*",
-    "http://*/*"
+    "https://remote-trust-ai.onrender.com/*",
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*",
+    "https://*.linkedin.com/*",
+    "https://*.indeed.com/*",
+    "https://*.greenhouse.io/*",
+    "https://*.lever.co/*",
+    "https://*.ashbyhq.com/*",
+    "https://*.workable.com/*",
+    "https://*.smartrecruiters.com/*",
+    "https://*.flexjobs.com/*",
+    "https://*.remoteok.com/*",
+    "https://*.weworkremotely.com/*",
+    "https://*.remotive.com/*",
+    "https://*.wellfound.com/*"
   ],
   "content_scripts": [
     {
       "matches": [
-        "https://*/*",
-        "http://*/*"
+        "https://*.linkedin.com/*",
+        "https://*.indeed.com/*",
+        "https://*.greenhouse.io/*",
+        "https://*.lever.co/*",
+        "https://*.ashbyhq.com/*",
+        "https://*.workable.com/*",
+        "https://*.smartrecruiters.com/*",
+        "https://*.flexjobs.com/*",
+        "https://*.remoteok.com/*",
+        "https://*.weworkremotely.com/*",
+        "https://*.remotive.com/*",
+        "https://*.wellfound.com/*"
       ],
       "js": ["content-script.js"],
       "run_at": "document_idle"

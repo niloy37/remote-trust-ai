@@ -40,6 +40,8 @@ class Scores(BaseModel):
 class ExtractedJob(BaseModel):
     job_title: str | None = None
     company: str | None = None
+    company_confidence: float | None = None
+    company_evidence: str | None = None
     salary: str | None = None
     location: str | None = None
     remote_type: str | None = None
@@ -163,6 +165,7 @@ class AnalyzeResponse(BaseModel):
     classification: JobClassification
     red_flags: list[str]
     positive_signals: list[str]
+    extraction_warnings: list[str] = Field(default_factory=list)
     explanation: str
     recommended_action: Literal["Apply", "Review carefully", "Avoid"]
 
@@ -187,6 +190,63 @@ class FeedbackResponse(BaseModel):
     user_feedback: FeedbackValue
     notes: str | None = None
     created_at: str
+
+
+class IngestionQueueRequest(BaseModel):
+    job_url: str = Field(..., min_length=8)
+    applicant_country: str = Field(default="India", min_length=2)
+    desired_role: str | None = None
+
+
+class IngestionQueueResponse(BaseModel):
+    queued: bool
+    queued_count: int
+    message: str
+
+
+class IngestionRunSummary(BaseModel):
+    run_id: str
+    status: str
+    started_at: str
+    completed_at: str | None = None
+    source_records_collected: int = 0
+    bronze_records_written: int = 0
+    silver_records_created: int = 0
+    preprocessing_rejected: int = 0
+    duplicates_skipped: int = 0
+    gold_records_published: int = 0
+    verified_opportunities: int = 0
+    risky_jobs_filtered: int = 0
+    errors: list[str] = Field(default_factory=list)
+    lakehouse_path: str
+
+
+class IngestionStatusResponse(BaseModel):
+    scheduler_enabled: bool
+    interval_seconds: int
+    is_running: bool
+    last_run_at: str | None = None
+    last_status: str
+    last_error: str | None = None
+    lakehouse_path: str
+
+
+class OpportunityFeedSummary(BaseModel):
+    scheduler_enabled: bool
+    ingestion_status: str
+    last_run_at: str | None = None
+    jobs_collected: int
+    jobs_deduped: int
+    preprocessing_rejected: int = 0
+    verified_opportunities: int
+    risky_jobs_filtered: int
+    average_score: int | None = None
+    lakehouse_path: str
+
+
+class OpportunityFeedResponse(BaseModel):
+    summary: OpportunityFeedSummary
+    jobs: list[JobRecord]
 
 
 class HealthResponse(BaseModel):

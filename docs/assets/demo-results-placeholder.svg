@@ -1,0 +1,40 @@
+<svg width="1000" height="620" viewBox="0 0 1000 620" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">RemoteTrust AI results screen</title>
+  <desc id="desc">A stylized result screen with trust score, verdict, extraction quality, red flags, and positive signals.</desc>
+  <rect width="1000" height="620" rx="26" fill="#08111F"/>
+  <rect x="32" y="32" width="936" height="556" rx="22" fill="#0F172A" stroke="#334155"/>
+  <g transform="translate(66 72)">
+    <circle cx="76" cy="76" r="62" fill="#1E293B"/>
+    <path d="M76 14A62 62 0 1 1 30 119" stroke="#FACC15" stroke-width="18" stroke-linecap="round"/>
+    <text x="48" y="88" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="38" font-weight="800">61</text>
+    <rect x="180" y="12" width="92" height="34" rx="17" fill="#FACC15" fill-opacity="0.14" stroke="#FACC15" stroke-opacity="0.38"/>
+    <text x="202" y="34" fill="#FEF08A" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Caution</text>
+    <rect x="286" y="12" width="202" height="34" rx="17" fill="#22D3EE" fill-opacity="0.14" stroke="#22D3EE" stroke-opacity="0.38"/>
+    <text x="308" y="34" fill="#A5F3FC" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="800">Low Quality Unverified</text>
+    <text x="180" y="86" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="800">Remote job trust analysis</text>
+    <text x="182" y="122" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="17">Recommendation: Review carefully. Company verified, but role detail is thin.</text>
+    <rect x="690" y="20" width="166" height="104" rx="14" fill="#111827" stroke="#334155"/>
+    <text x="726" y="56" fill="#34D399" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">Good</text>
+    <text x="724" y="82" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="13">Extraction</text>
+  </g>
+  <g transform="translate(66 240)">
+    <rect width="410" height="150" rx="16" fill="#111827" stroke="#334155"/>
+    <text x="24" y="36" fill="#F87171" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800">Red flags</text>
+    <rect x="24" y="58" width="348" height="10" rx="5" fill="#334155"/>
+    <rect x="24" y="84" width="294" height="10" rx="5" fill="#334155"/>
+    <rect x="24" y="110" width="330" height="10" rx="5" fill="#334155"/>
+    <rect x="450" width="410" height="150" rx="16" fill="#111827" stroke="#334155"/>
+    <text x="474" y="36" fill="#34D399" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800">Positive trust signals</text>
+    <rect x="474" y="58" width="316" height="10" rx="5" fill="#334155"/>
+    <rect x="474" y="84" width="340" height="10" rx="5" fill="#334155"/>
+    <rect x="474" y="110" width="246" height="10" rx="5" fill="#334155"/>
+  </g>
+  <g transform="translate(66 424)">
+    <rect width="860" height="98" rx="16" fill="#111827" stroke="#334155"/>
+    <text x="24" y="36" fill="#22D3EE" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800">Extracted job details</text>
+    <text x="24" y="68" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="15">Innovation Engineer</text>
+    <text x="244" y="68" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="15">Envisio</text>
+    <text x="414" y="68" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="15">Flexible remote option</text>
+    <text x="650" y="68" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="15">Company confidence: 94%</text>
+  </g>
+</svg>

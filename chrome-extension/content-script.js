@@ -6,13 +6,70 @@
 
   function sourceFromUrl(url) {
     const hostname = new URL(url).hostname.toLowerCase();
-    if (hostname.endsWith("linkedin.com")) return "linkedin";
-    if (hostname.endsWith("indeed.com")) return "indeed";
-    if (hostname.includes("greenhouse")) return "greenhouse";
-    if (hostname.includes("lever")) return "lever";
-    if (hostname.includes("ashby")) return "ashby";
-    if (hostname.includes("workable")) return "workable";
+    if (hostname.endsWith("linkedin.com")) return "LinkedIn";
+    if (hostname.endsWith("indeed.com")) return "Indeed";
+    if (hostname.endsWith("greenhouse.io")) return "Greenhouse";
+    if (hostname.endsWith("lever.co")) return "Lever";
+    if (hostname.endsWith("ashbyhq.com")) return "Ashby";
+    if (hostname.endsWith("workable.com")) return "Workable";
+    if (hostname.endsWith("smartrecruiters.com")) return "SmartRecruiters";
+    if (hostname.endsWith("flexjobs.com")) return "FlexJobs";
+    if (hostname.endsWith("remoteok.com")) return "RemoteOK";
+    if (hostname.endsWith("weworkremotely.com")) return "We Work Remotely";
+    if (hostname.endsWith("remotive.com")) return "Remotive";
+    if (hostname.endsWith("wellfound.com")) return "Wellfound";
     return null;
+  }
+
+  function isSearchOrListingPage(url) {
+    const parsed = new URL(url);
+    const lower = `${parsed.pathname}?${parsed.searchParams.toString()}`.toLowerCase();
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      lower.includes("/jobs/search-results") ||
+      lower.includes("/jobs/search") ||
+      lower.includes("/collections/") ||
+      lower.includes("/recommended/") ||
+      lower.includes("/results/") ||
+      lower.includes("/search") ||
+      lower.includes("search=") ||
+      lower.includes("q=") ||
+      lower.includes("/remote-jobs/search") ||
+      lower.includes("/categories/")
+    ) {
+      return true;
+    }
+    if (hostname.endsWith("flexjobs.com") && !/\/(?:remote-jobs|jobs)\/[^/?#]+/i.test(parsed.pathname)) return true;
+    if (hostname.endsWith("remoteok.com") && /^\/(?:remote-[^/?#]+-jobs)?\/?$/i.test(parsed.pathname)) return true;
+    if (hostname.endsWith("weworkremotely.com") && /^\/(?:categories|remote-jobs)?\/?$/i.test(parsed.pathname)) return true;
+    return false;
+  }
+
+  function shouldRejectSearchOrListingPage(url) {
+    return sourceFromUrl(url) !== "LinkedIn" && isSearchOrListingPage(url);
+  }
+
+  function isLinkedInBrowseResultsPage(url) {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    if (!hostname.endsWith("linkedin.com")) return false;
+    const pathname = parsed.pathname.toLowerCase();
+    return (
+      /^\/jobs\/(?:search-results|search|collections|recommended)\/?/i.test(pathname) ||
+      parsed.searchParams.has("currentJobId")
+    );
+  }
+
+  function linkedInJobIdFromUrl(url) {
+    const parsed = new URL(url);
+    const pathMatch = parsed.pathname.match(/\/jobs\/view\/(\d+)/i);
+    if (pathMatch) return pathMatch[1];
+    return parsed.searchParams.get("currentJobId");
+  }
+
+  function canonicalLinkedInJobUrl(url) {
+    const jobId = linkedInJobIdFromUrl(url);
+    return jobId ? `https://www.linkedin.com/jobs/view/${jobId}/` : url;
   }
 
   function normalizeText(value) {
@@ -109,40 +166,24 @@
     return null;
   }
 
-  function extractGenericJobPage() {
+  function extractGenericJobPage(sourceLabel = "Generic Portal") {
+    const jsonLd = extractJsonLdJob();
+    const title =
+      jsonLd.title ||
+      firstText(["h1", "h2", "[data-testid*='title' i]", "[class*='title' i]", "[itemprop='title']"]) ||
+      document.title;
+    const company =
+      jsonLd.company ||
+      getMetaContent(["og:site_name", "application-name"]) ||
+      firstText(["[data-testid*='company' i]", "[class*='company' i]", "[class*='organization' i]", "[class*='department' i]", "[itemprop='hiringOrganization']"]);
+    const location =
+      jsonLd.location ||
+      firstText(["[data-testid*='location' i]", "[class*='location' i]", "[class*='office' i]"]);
+    const bodyText = fallbackMainText();
+    const description = normalizeText([jsonLd.description, bodyText].filter(Boolean).join("\n\n"));
 
-  const jsonLd = extractJsonLdJob();
-
-  const title =
-    jsonLd.title ||
-    firstText(["h1", "h2"]) ||
-    document.title;
-
-  const company =
-    jsonLd.company ||
-    getMetaContent(["og:site_name"]);
-
-  const description =
-    fallbackMainText();
-
-  if (!description || description.length < 200) {
-
-    return {
-      ok: false,
-      error: "Could not extract enough readable job text."
-    };
+    return { source: sourceLabel, title, company, location, description };
   }
-
-  return {
-    ok: true,
-    source: "Generic Portal",
-    job_title: title,
-    company,
-    location: jsonLd.location || null,
-    job_description: description,
-    page_url: window.location.href
-  };
-}
 
   function extractJsonLdJob() {
     const scripts = Array.from(document.querySelectorAll('script[type="application/ld+json"]'));
@@ -221,7 +262,10 @@
   function textWithin(root, selectors) {
     if (!root) return "";
     for (const selector of selectors) {
-      const nodes = Array.from(root.querySelectorAll(selector)).filter(isVisible);
+      const nodes = [
+        root.matches?.(selector) ? root : null,
+        ...Array.from(root.querySelectorAll(selector))
+      ].filter(isVisible);
       for (const node of nodes) {
         const text = visibleText(node);
         if (text.length > 80) return text;
@@ -231,9 +275,7 @@
   }
 
   function currentLinkedInJobId() {
-    const pathMatch = location.pathname.match(/\/jobs\/view\/(\d+)/i);
-    if (pathMatch) return pathMatch[1];
-    return new URLSearchParams(location.search).get("currentJobId");
+    return linkedInJobIdFromUrl(location.href);
   }
 
   function firstTopCardLinkText(hrefPattern) {
@@ -263,9 +305,14 @@
     const selectors = [
       jobId ? `[data-job-id="${jobId}"]` : null,
       jobId ? `[data-occludable-job-id="${jobId}"]` : null,
+      jobId ? `[data-entity-urn*="${jobId}"]` : null,
+      jobId ? `[data-urn*="${jobId}"]` : null,
       jobId ? `a[href*="/jobs/view/${jobId}"]` : null,
+      jobId ? `a[href*="currentJobId=${jobId}"]` : null,
       ".jobs-search-results__list-item--active",
       ".jobs-search-results-list__list-item--active",
+      ".jobs-search-results-list__list-item[aria-selected='true']",
+      ".jobs-search-results__list-item[aria-selected='true']",
       ".job-card-container--clickable[aria-current='page']",
       "[aria-current='page']"
     ].filter(Boolean);
@@ -279,29 +326,47 @@
     return null;
   }
 
-  function findLinkedInDetailRoot(parsedTitle) {
+  function hasLinkedInDetailSignals(text) {
+    return /about the job|show more|seniority level|employment type|job description|responsibilities|qualifications|easy apply|apply now/i.test(text);
+  }
+
+  function findLinkedInDetailRoot(parsedTitle, options = {}) {
+    const requireDetailContext = Boolean(options.requireDetailContext);
     const candidates = [
       ".jobs-search__job-details--container",
+      ".jobs-search__job-details--wrapper",
       ".jobs-details__main-content",
       ".jobs-details",
       ".job-view-layout",
       ".jobs-search__job-details",
+      ".jobs-search-results-list__detail-view",
+      ".jobs-search-results__job-details",
       ".two-pane-serp-page__detail-view",
       ".scaffold-layout__detail",
+      "[data-view-name='job-details']",
+      "[data-test-job-detail]",
+      "[data-testid*='job-detail' i]",
+      "[class*='job-details' i]",
       "main"
     ]
-      .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
-      .filter(isVisible)
-      .map((node) => {
+      .flatMap((selector) => Array.from(document.querySelectorAll(selector)).map((node) => ({ node, selector })))
+      .filter(({ node }) => isVisible(node))
+      .map(({ node, selector }) => {
         const text = visibleText(node);
+        const hasDetailSignals = hasLinkedInDetailSignals(text);
+        const isDetailContainer = selector !== "main";
         let score = text.length;
-        if (/about the job|show more|apply|easy apply|seniority level|employment type/i.test(text)) score += 2000;
+        if (hasDetailSignals) score += 2000;
+        if (/apply|easy apply/i.test(text)) score += 500;
         if (parsedTitle?.title && text.includes(parsedTitle.title)) score += 1500;
         if (parsedTitle?.company && text.includes(parsedTitle.company)) score += 1000;
         if (/similar jobs|recommended jobs/i.test(text)) score -= 1000;
-        return { node, score, textLength: text.length };
+        return { node, score, textLength: text.length, hasDetailSignals, isDetailContainer };
       })
-      .filter((candidate) => candidate.textLength > 180)
+      .filter((candidate) => (
+        candidate.textLength > 180 &&
+        (!requireDetailContext || candidate.hasDetailSignals || candidate.isDetailContainer)
+      ))
       .sort((a, b) => b.score - a.score);
 
     return candidates[0]?.node || null;
@@ -309,8 +374,11 @@
 
   function fallbackMainText() {
     const clone = document.body.cloneNode(true);
-    clone.querySelectorAll("script, style, noscript, svg, nav, header, footer, aside, form, button").forEach((node) => node.remove());
+    clone.querySelectorAll("script, style, noscript, svg, nav, header, footer, aside, form, button, [class*='filter' i], [class*='search' i], [class*='newsletter' i], [class*='cookie' i]").forEach((node) => node.remove());
     const containers = [
+      clone.querySelector("[data-testid*='job' i]"),
+      clone.querySelector("[class*='job-detail' i]"),
+      clone.querySelector("[class*='job-post' i]"),
       clone.querySelector("main"),
       clone.querySelector("article"),
       clone.querySelector("[role='main']"),
@@ -327,8 +395,12 @@
     const jsonLd = extractJsonLdJob();
     const metaTitle = getMetaContent(["og:title", "twitter:title"]) || document.title;
     const parsedTitle = parseLinkedInTitle(metaTitle);
-    const detailRoot = findLinkedInDetailRoot(parsedTitle);
-    const selectedCard = findLinkedInSelectedCard(currentLinkedInJobId());
+    const jobId = currentLinkedInJobId();
+    const isViewPage = /\/jobs\/view\/\d+/i.test(location.pathname);
+    const isBrowsePage = isLinkedInBrowseResultsPage(location.href);
+    const isSearchPage = (isBrowsePage || isSearchOrListingPage(location.href)) && !isViewPage;
+    const detailRoot = findLinkedInDetailRoot(parsedTitle, { requireDetailContext: isSearchPage });
+    const selectedCard = findLinkedInSelectedCard(jobId);
 
     const titleSelectors = [
       "[data-test-job-title]",
@@ -336,10 +408,14 @@
       ".jobs-details-top-card__job-title",
       ".job-details-jobs-unified-top-card__job-title",
       ".job-details-jobs-unified-top-card__job-title h1",
+      ".job-details-jobs-unified-top-card__job-title a",
       ".jobs-unified-top-card__job-title h1",
+      ".jobs-unified-top-card__job-title a",
       ".top-card-layout__title",
       ".jobs-unified-top-card__job-title",
       ".jobs-details__main-content h1",
+      "[data-view-name='job-details'] h1",
+      "[class*='top-card' i] h1",
       ".job-view-layout h1",
       "h1"
     ];
@@ -351,6 +427,8 @@
       ".job-details-jobs-unified-top-card__company-name",
       ".jobs-unified-top-card__company-name a",
       ".jobs-unified-top-card__company-name",
+      ".jobs-unified-top-card__subtitle-primary-grouping a",
+      ".job-details-jobs-unified-top-card__primary-description-container a",
       ".topcard__org-name-link",
       ".top-card-layout__second-subline a"
     ];
@@ -360,15 +438,22 @@
       ".job-details-jobs-unified-top-card__primary-description-container",
       ".jobs-unified-top-card__bullet",
       ".jobs-unified-top-card__primary-description",
+      ".jobs-unified-top-card__workplace-type",
+      ".jobs-unified-top-card__subtitle-primary-grouping",
       ".topcard__flavor--bullet",
       ".top-card-layout__second-subline"
     ];
     const descriptionSelectors = [
+      ".jobs-description",
+      ".jobs-description__content",
       ".jobs-description__content .jobs-box__html-content",
       ".jobs-description-content__text",
       ".jobs-description__container",
       ".jobs-box__html-content",
       ".jobs-search__job-details--container",
+      ".jobs-search__job-details--wrapper",
+      ".jobs-search-results-list__detail-view",
+      "[data-view-name='job-details']",
       ".job-view-layout"
     ];
 
@@ -389,14 +474,13 @@
       "[class*='location']"
     ]);
 
-    const isViewPage = /\/jobs\/view\/\d+/i.test(location.pathname);
     const title =
       jsonLd.title ||
       (isViewPage ? parsedTitle.title : null) ||
       firstTextWithin(detailRoot, titleSelectors) ||
       cardTitle ||
-      parsedTitle.title ||
-      firstText(titleSelectors);
+      (isBrowsePage ? null : parsedTitle.title) ||
+      (isBrowsePage ? null : firstText(titleSelectors));
     const company =
       jsonLd.company ||
       (isViewPage ? parsedTitle.company : null) ||
@@ -404,26 +488,41 @@
       firstTopCardLinkTextWithin(detailRoot, "/company/") ||
       firstTopCardLinkTextWithin(detailRoot, "/school/") ||
       cardCompany ||
-      parsedTitle.company ||
-      firstTopCardLinkText("/company/") ||
-      firstTopCardLinkText("/school/");
+      (isBrowsePage ? null : parsedTitle.company) ||
+      (isBrowsePage ? null : firstTopCardLinkText("/company/")) ||
+      (isBrowsePage ? null : firstTopCardLinkText("/school/"));
     const linkedInLocation =
       jsonLd.location ||
       (isViewPage ? parsedTitle.location : null) ||
       firstTextWithin(detailRoot, locationSelectors) ||
       cardLocation ||
-      parsedTitle.location;
+      (isBrowsePage ? null : parsedTitle.location);
     let description =
       textWithin(detailRoot, descriptionSelectors) ||
-      textFromSelectors(descriptionSelectors) ||
-      jsonLd.description ||
+      (isSearchPage ? "" : textFromSelectors(descriptionSelectors)) ||
+      ((isViewPage || detailRoot) ? jsonLd.description : "") ||
       "";
-    if (!description && (isViewPage || detailRoot)) {
+    if (!description && detailRoot) {
+      description = visibleText(detailRoot);
+    }
+    if (!description && isViewPage) {
       description = fallbackMainText();
     }
     description = cleanLinkedInText(description);
+    const hasLinkedInDetailContext =
+      isViewPage ||
+      Boolean(detailRoot && (jobId || selectedCard || title || company || description.length > 120)) ||
+      Boolean(isBrowsePage && jobId && selectedCard && (cardTitle || cardCompany));
 
-    return { source: "LinkedIn", title, company, location: linkedInLocation, description };
+    return {
+      source: "LinkedIn",
+      title,
+      company,
+      location: linkedInLocation,
+      description,
+      pageUrl: canonicalLinkedInJobUrl(location.href),
+      hasDetailContext: hasLinkedInDetailContext
+    };
   }
 
   function extractIndeed() {
@@ -469,15 +568,35 @@
   function extractJobPage() {
     const source = sourceFromUrl(location.href);
     if (!source) {
-      return extractGenericJobPage();
+      return {
+        ok: false,
+        error: "Open an individual posting on a supported job site before running RemoteTrust AI."
+      };
+    }
+    if (shouldRejectSearchOrListingPage(location.href)) {
+      return {
+        ok: false,
+        error: "This looks like a search or listing page. Open one individual job posting, then run RemoteTrust AI again."
+      };
     }
 
-    const extracted = source === "linkedin" ? extractLinkedIn() : extractIndeed();
+    const extracted =
+      source === "LinkedIn" ? extractLinkedIn() :
+      source === "Indeed" ? extractIndeed() :
+      extractGenericJobPage(source);
+    if (extracted.source === "LinkedIn" && !extracted.hasDetailContext) {
+      return {
+        ok: false,
+        error: "Select a job from the LinkedIn results list so its details are open, then run RemoteTrust AI again."
+      };
+    }
     const jobText = buildJobText(extracted).slice(0, MAX_DESCRIPTION_LENGTH);
     if (!extracted.description || extracted.description.length < 120) {
       const hint = extracted.source === "LinkedIn"
-        ? " On LinkedIn search/browse pages, click one job so the right-side job detail panel opens, then run the extension again."
-        : "";
+        ? " Select a job from the LinkedIn results list so its details are open, then run RemoteTrust AI again."
+        : extracted.source === "Indeed"
+          ? ""
+          : " Open the individual job posting rather than a search or listing page, then run the extension again.";
       return {
         ok: false,
         error: `Could not find enough readable job description text on this ${extracted.source} page.${hint}`
@@ -487,13 +606,22 @@
     return {
       ok: true,
       source: extracted.source,
-      page_url: location.href,
+      page_url: extracted.pageUrl || location.href,
       job_title: extracted.title,
       company: extracted.company,
       location: extracted.location,
       job_description: jobText
     };
   }
+
+  window.__REMOTE_TRUST_AI_TEST_HOOKS__ = {
+    sourceFromUrl,
+    isSearchOrListingPage,
+    isLinkedInBrowseResultsPage,
+    shouldRejectSearchOrListingPage,
+    linkedInJobIdFromUrl,
+    canonicalLinkedInJobUrl
+  };
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "REMOTE_TRUST_EXTRACT_JOB") return false;

@@ -1,4 +1,7 @@
-const backendUrl = process.env.BACKEND_INTERNAL_URL || "http://127.0.0.1:8000";
+const backendUrl =
+  process.env.BACKEND_INTERNAL_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  "https://remote-trust-ai.onrender.com";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -13,4 +16,3 @@ const nextConfig = {
 };
 
 export default nextConfig;
-

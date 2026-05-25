@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getJob } from "@/lib/api";
+import { friendlyErrorMessage } from "@/lib/display";
 import type { JobRecord } from "@/lib/types";
 import { ResultsPanel } from "@/components/ResultsPanel";
 
@@ -21,7 +22,7 @@ export default function ResultPage() {
       try {
         setJob(await getJob(params.jobId));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not load result.");
+        setError(friendlyErrorMessage(err, "We could not load this result right now. Please try again."));
       } finally {
         setIsLoading(false);
       }
