@@ -180,3 +180,60 @@ export interface FeedbackResponse extends FeedbackRequest {
   id: string;
   created_at: string;
 }
+
+export interface OpportunityFeedSummary {
+  scheduler_enabled: boolean;
+  ingestion_status: string;
+  last_run_at: string | null;
+  jobs_collected: number;
+  jobs_deduped: number;
+  preprocessing_rejected: number;
+  verified_opportunities: number;
+  risky_jobs_filtered: number;
+  average_score: number | null;
+  lakehouse_path: string;
+}
+
+export interface OpportunityFeedResponse {
+  summary: OpportunityFeedSummary;
+  jobs: JobRecord[];
+}
+
+export interface IngestionRunSummary {
+  run_id: string;
+  status: string;
+  started_at: string;
+  completed_at: string | null;
+  source_records_collected: number;
+  bronze_records_written: number;
+  silver_records_created: number;
+  preprocessing_rejected: number;
+  duplicates_skipped: number;
+  gold_records_published: number;
+  verified_opportunities: number;
+  risky_jobs_filtered: number;
+  errors: string[];
+  lakehouse_path: string;
+}
+
+export interface IngestionStatusResponse {
+  scheduler_enabled: boolean;
+  interval_seconds: number;
+  is_running: boolean;
+  last_run_at: string | null;
+  last_status: string;
+  last_error: string | null;
+  lakehouse_path: string;
+}
+
+export interface IngestionQueueRequest {
+  job_url: string;
+  applicant_country: string;
+  desired_role: string | null;
+}
+
+export interface IngestionQueueResponse {
+  queued: boolean;
+  queued_count: number;
+  message: string;
+}

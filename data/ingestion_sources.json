@@ -1,0 +1,22 @@
+{
+  "file_sources": [
+    {
+      "name": "demo_sample_jobs",
+      "path": "data/sample_jobs.json",
+      "enabled": true,
+      "default_applicant_country": "India"
+    }
+  ],
+  "feed_sources": [
+    {
+      "name": "remotive_remote_jobs",
+      "type": "remotive",
+      "url": "https://remotive.com/api/remote-jobs?limit=20",
+      "enabled": true,
+      "limit": 20,
+      "timeout_seconds": 8,
+      "applicant_country": "India",
+      "desired_role": "Remote Role"
+    }
+  ]
+}

@@ -168,6 +168,11 @@ button:disabled {
   align-items: center;
 }
 
+.score-wrap {
+  position: relative;
+  width: 82px;
+}
+
 .score-ring {
   display: grid;
   width: 82px;
@@ -188,8 +193,36 @@ button:disabled {
   font-size: 11px;
 }
 
+.info {
+  display: inline-grid;
+  width: 15px;
+  height: 15px;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: help;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.grid .info,
+.classification-card .info {
+  display: inline-grid;
+}
+
+.score-info {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  background: var(--panel);
+}
+
 .badge {
   display: inline-flex;
+  align-items: center;
+  gap: 5px;
   border: 1px solid rgba(61, 214, 163, 0.35);
   border-radius: 999px;
   background: rgba(61, 214, 163, 0.12);
@@ -224,6 +257,8 @@ h2 {
 
 .title-validation {
   display: inline-flex;
+  align-items: center;
+  gap: 5px;
   margin-top: 8px;
   border: 1px solid rgba(61, 214, 163, 0.35);
   border-radius: 999px;
@@ -236,6 +271,8 @@ h2 {
 
 .company-verification {
   display: inline-flex;
+  align-items: center;
+  gap: 5px;
   margin-top: 6px;
   border: 1px solid rgba(56, 189, 248, 0.35);
   border-radius: 999px;
@@ -248,6 +285,8 @@ h2 {
 
 .classification {
   display: inline-flex;
+  align-items: center;
+  gap: 5px;
   margin-top: 8px;
   border: 1px solid rgba(56, 189, 248, 0.35);
   border-radius: 999px;
@@ -291,7 +330,9 @@ h2 {
 }
 
 .classification-card span {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   color: var(--muted);
   font-size: 11px;
 }
@@ -341,7 +382,9 @@ h2 {
 }
 
 .grid span {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   color: var(--muted);
   font-size: 11px;
 }
