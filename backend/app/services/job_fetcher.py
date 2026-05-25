@@ -45,6 +45,34 @@ class JobFetchError(ValueError):
 def domain_for(url: str) -> str:
     return urlparse(url).netloc.lower().removeprefix("www.")
 
+def infer_company_from_domain(url: str) -> str | None:
+
+    domain = domain_for(url)
+
+    ats_patterns = {
+        "greenhouse.io": lambda d, u: urlparse(u).path.split("/")[1],
+        "lever.co": lambda d, u: urlparse(u).path.split("/")[1],
+        "ashbyhq.com": lambda d, u: urlparse(u).path.split("/")[1],
+        "workable.com": lambda d, u: urlparse(u).path.split("/")[1],
+    }
+
+    for ats, extractor in ats_patterns.items():
+
+        if ats in domain:
+
+            try:
+
+                company = extractor(domain, url)
+
+                company = company.replace("-", " ")
+
+                return company.title()
+
+            except Exception:
+                return None
+
+    return None
+
 
 def normalize_url(url: str) -> str:
     value = (url or "").strip()
@@ -303,15 +331,26 @@ def page_looks_blocked(text: str) -> bool:
 
 
 def fetch_job_description(url: str) -> FetchResult:
+    document = fetch_html(url)
+
     normalized_url = normalize_url(url)
     if is_search_or_collection_url(normalized_url):
         raise JobFetchError("This URL appears to be a search, collection, or listing page. Open an individual job posting URL or paste one full job description.")
 
     document = fetch_html(normalized_url)
     json_ld_text = extract_json_ld_job(document)
+
     visible_text = extract_visible_text(document)
+
     meta_text = extract_meta_summary(document)
 
+    inferred_company = infer_company_from_domain(url)
+
+    candidates = [json_ld_text, visible_text, meta_text]
+    best = max((candidate for candidate in candidates if candidate), key=len, default="")
+    if inferred_company and "Company:" not in best:
+        best = f"Company: {inferred_company}\n" + best
+        
     candidates = [visible_text, meta_text]
     best = json_ld_text or max((candidate for candidate in candidates if candidate), key=len, default="")
     best = best[:30_000]
