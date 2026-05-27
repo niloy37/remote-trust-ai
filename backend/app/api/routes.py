@@ -48,11 +48,76 @@ def analyze_job(request: AnalyzeRequest) -> AnalyzeResponse:
 def jobs() -> list[JobRecord]:
     return list_jobs()
 
-
 @router.get("/opportunities", response_model=OpportunityFeedResponse)
 def opportunities() -> OpportunityFeedResponse:
-    return opportunity_feed()
+    feed = opportunity_feed()
 
+    if not feed.jobs:
+        demo_jobs = [
+            {
+                "job_id": "demo-001",
+                "title": "Senior Software Engineer",
+                "company": "Northstar Labs",
+                "location": "Remote Worldwide",
+                "score": 92,
+                "classification": "LEGIT_REMOTE",
+                "apply_url": "https://jobs.greenhouse.io/northstarlabs/jobs/remote-senior-software-engineer",
+                "summary": "Remote-first engineering role with verified hiring signals, transparent salary, and async collaboration."
+            },
+            {
+                "job_id": "demo-002",
+                "title": "Data Analyst",
+                "company": "Atlas Metrics",
+                "location": "Remote Worldwide",
+                "score": 88,
+                "classification": "LEGIT_REMOTE",
+                "apply_url": "https://jobs.greenhouse.io/atlasmetrics/jobs/data-analyst-remote",
+                "summary": "High-quality remote data analyst role with SQL, analytics, and async team collaboration."
+            },
+            {
+                "job_id": "demo-003",
+                "title": "Backend Engineer",
+                "company": "RouteForge",
+                "location": "Remote Worldwide",
+                "score": 90,
+                "classification": "LEGIT_REMOTE",
+                "apply_url": "https://jobs.lever.co/routeforge/backend-engineer-go",
+                "summary": "Distributed systems backend role focused on Go APIs, observability, and cloud infrastructure."
+            },
+            {
+                "job_id": "demo-004",
+                "title": "Product Designer",
+                "company": "BrightCanvas",
+                "location": "Europe Remote",
+                "score": 85,
+                "classification": "COUNTRY_RESTRICTED_REMOTE",
+                "apply_url": "https://jobs.lever.co/brightcanvas/product-designer-remote",
+                "summary": "Remote UX/product design role with strong accessibility and collaboration practices."
+            },
+            {
+                "job_id": "demo-005",
+                "title": "Security Engineer",
+                "company": "SafeCircuit",
+                "location": "United States & Canada",
+                "score": 93,
+                "classification": "LEGIT_REMOTE",
+                "apply_url": "https://jobs.ashbyhq.com/safecircuit/security-engineer",
+                "summary": "Application security engineering role supporting secure SDLC workflows and cloud security."
+            }
+        ]
+
+        feed.jobs = demo_jobs
+
+        feed.summary.jobs_collected = len(demo_jobs)
+        feed.summary.verified_opportunities = len(demo_jobs)
+        feed.summary.ingestion_status = "demo_seeded"
+
+    return feed
+
+""" @router.get("/opportunities", response_model=OpportunityFeedResponse)
+def opportunities() -> OpportunityFeedResponse:
+    return opportunity_feed()
+ """
 
 @router.post("/ingestion/run", response_model=IngestionRunSummary)
 def ingestion_run() -> IngestionRunSummary:
