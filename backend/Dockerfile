@@ -2,14 +2,13 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY backend/requirements.txt ./backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+COPY requirements.txt .
 
-COPY backend ./backend
-#COPY data ./data
+RUN pip install --no-cache-dir -r requirements.txt
 
-WORKDIR /app/backend
-ENV PYTHONPATH=/app/backend
+COPY . .
+
+ENV PYTHONPATH=/app
 
 EXPOSE 8000
 

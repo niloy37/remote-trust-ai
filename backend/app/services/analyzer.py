@@ -51,7 +51,7 @@ def verdict_for(final_score: int) -> str:
     return "Risky"
 
 
-def recommended_action_for(final_score: int) -> str:
+
 def recommended_action_for(
     final_score: int,
     classification_label: str | None = None,
