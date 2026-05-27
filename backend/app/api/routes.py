@@ -62,14 +62,21 @@ def opportunities() -> OpportunityFeedResponse:
                 "verdict": "Verified",
                 "recommended_action": "Apply",
 
+                "analysis_summary": "Verified remote engineering opportunity with strong trust signals.",
+                "risk_level": "Low",
+
                 "flags": [],
+                "warnings": [],
+
                 "trust_signals": [
                     "Verified ATS link",
                     "Transparent compensation"
                 ],
+
                 "reasons": [
                     "Remote-first organization"
                 ],
+
                 "evidence": [
                     "Official careers portal"
                 ],
@@ -79,7 +86,16 @@ def opportunities() -> OpportunityFeedResponse:
                 },
 
                 "scores": {
-                    "remote_authenticity": 95
+                    "remote_authenticity": 95,
+                    "legitimacy": 94,
+                    "job_quality": 91,
+                    "global_eligibility": 89
+                },
+
+                "layer_scores": {},
+
+                "country_fit": {
+                    "eligible": True
                 },
 
                 "company_verification": {
@@ -102,16 +118,23 @@ def opportunities() -> OpportunityFeedResponse:
                 "verdict": "Verified",
                 "recommended_action": "Apply",
 
+                "analysis_summary": "Remote analytics role with transparent hiring process.",
+                "risk_level": "Low",
+
                 "flags": [],
+                "warnings": [],
+
                 "trust_signals": [
                     "Verified employer",
-                    "Transparent interview process"
+                    "Public ATS portal"
                 ],
+
                 "reasons": [
                     "Strong remote evidence"
                 ],
+
                 "evidence": [
-                    "Official ATS posting"
+                    "Clear compensation and role details"
                 ],
 
                 "classification": {
@@ -119,7 +142,16 @@ def opportunities() -> OpportunityFeedResponse:
                 },
 
                 "scores": {
-                    "remote_authenticity": 90
+                    "remote_authenticity": 90,
+                    "legitimacy": 89,
+                    "job_quality": 87,
+                    "global_eligibility": 86
+                },
+
+                "layer_scores": {},
+
+                "country_fit": {
+                    "eligible": True
                 },
 
                 "company_verification": {
@@ -142,16 +174,23 @@ def opportunities() -> OpportunityFeedResponse:
                 "verdict": "Verified",
                 "recommended_action": "Apply",
 
+                "analysis_summary": "Distributed systems backend engineering opportunity.",
+                "risk_level": "Low",
+
                 "flags": [],
+                "warnings": [],
+
                 "trust_signals": [
                     "Trusted application portal",
-                    "Clear salary disclosure"
+                    "Remote infrastructure team"
                 ],
+
                 "reasons": [
-                    "Strong backend engineering signals"
+                    "Strong backend engineering legitimacy"
                 ],
+
                 "evidence": [
-                    "Verified remote infrastructure role"
+                    "Verified remote company"
                 ],
 
                 "classification": {
@@ -159,7 +198,16 @@ def opportunities() -> OpportunityFeedResponse:
                 },
 
                 "scores": {
-                    "remote_authenticity": 93
+                    "remote_authenticity": 93,
+                    "legitimacy": 91,
+                    "job_quality": 89,
+                    "global_eligibility": 88
+                },
+
+                "layer_scores": {},
+
+                "country_fit": {
+                    "eligible": True
                 },
 
                 "company_verification": {
@@ -172,96 +220,15 @@ def opportunities() -> OpportunityFeedResponse:
                     "remote_type": "Fully Remote",
                     "apply_url": "https://jobs.lever.co/routeforge/backend-engineer-go"
                 }
-            },
-
-            {
-                "job_id": "demo-004",
-                "applicant_country": "Brazil",
-                "desired_role": "Product Designer",
-                "final_score": 82,
-                "verdict": "Review",
-                "recommended_action": "Review Carefully",
-
-                "flags": [
-                    "Regional hiring restrictions"
-                ],
-                "trust_signals": [
-                    "Legitimate company domain"
-                ],
-                "reasons": [
-                    "Remote but region restricted"
-                ],
-                "evidence": [
-                    "Europe-only eligibility"
-                ],
-
-                "classification": {
-                    "label": "COUNTRY_RESTRICTED_REMOTE"
-                },
-
-                "scores": {
-                    "remote_authenticity": 80
-                },
-
-                "company_verification": {
-                    "status": "Partially Verified"
-                },
-
-                "extracted": {
-                    "job_title": "Product Designer",
-                    "company": "BrightCanvas",
-                    "remote_type": "Europe Only",
-                    "apply_url": "https://jobs.lever.co/brightcanvas/product-designer-remote"
-                }
-            },
-
-            {
-                "job_id": "demo-005",
-                "applicant_country": "United States",
-                "desired_role": "Security Engineer",
-                "final_score": 94,
-                "verdict": "Verified",
-                "recommended_action": "Apply",
-
-                "flags": [],
-                "trust_signals": [
-                    "Verified cybersecurity employer",
-                    "Transparent hiring workflow"
-                ],
-                "reasons": [
-                    "Strong security engineering legitimacy"
-                ],
-                "evidence": [
-                    "Official AshbyHQ application"
-                ],
-
-                "classification": {
-                    "label": "LEGIT_REMOTE"
-                },
-
-                "scores": {
-                    "remote_authenticity": 97
-                },
-
-                "company_verification": {
-                    "status": "Verified"
-                },
-
-                "extracted": {
-                    "job_title": "Security Engineer",
-                    "company": "SafeCircuit",
-                    "remote_type": "Fully Remote",
-                    "apply_url": "https://jobs.ashbyhq.com/safecircuit/security-engineer"
-                }
             }
         ]
 
         feed.jobs = demo_jobs
         feed.summary.jobs_collected = len(demo_jobs)
         feed.summary.jobs_deduped = len(demo_jobs)
-        feed.summary.verified_opportunities = 4
-        feed.summary.risky_jobs_filtered = 1
-        feed.summary.average_score = 89
+        feed.summary.verified_opportunities = len(demo_jobs)
+        feed.summary.risky_jobs_filtered = 0
+        feed.summary.average_score = 90
         feed.summary.ingestion_status = "demo_seeded"
 
     return feed
