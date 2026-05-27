@@ -8,7 +8,7 @@ import { getOpportunities, queueIngestionUrl, runIngestion } from "@/lib/api";
 import { applyLinkFor } from "@/lib/apply-link";
 import { friendlyErrorMessage } from "@/lib/display";
 import { COUNTRIES } from "@/lib/samples";
-import type { JobRecord, OpportunityFeedSummary } from "@/lib/types";
+import type { IngestionRunSummary, JobRecord, OpportunityFeedResponse, OpportunityFeedSummary } from "@/lib/types";
 import {
   curationBucket,
   eligibilityCategory,
@@ -82,6 +82,32 @@ function includesQuery(job: JobRecord, query: string) {
     .join(" ")
     .toLowerCase();
   return text.includes(q);
+}
+
+function opportunityLabel(count: number) {
+  return `${count} ${count === 1 ? "opportunity" : "opportunities"}`;
+}
+
+function postingLabel(count: number) {
+  return `${count} low-quality ${count === 1 ? "posting" : "postings"}`;
+}
+
+function buildIngestionNotice(result: IngestionRunSummary, feed: OpportunityFeedResponse | null, prefix = "") {
+  const available = feed?.summary.opportunities_available ?? feed?.jobs.length ?? 0;
+  const rejectedText = result.preprocessing_rejected > 0 ? ` Rejected ${postingLabel(result.preprocessing_rejected)}.` : "";
+  const warningText = result.errors.length > 0 ? ` ${result.errors.length} warning${result.errors.length === 1 ? "" : "s"} recorded.` : "";
+  const intro = prefix ? `${prefix} ` : "";
+
+  if (result.gold_records_published > 0) {
+    return `${intro}Added ${opportunityLabel(result.gold_records_published)}. Feed now has ${opportunityLabel(available)}.${rejectedText}${warningText}`;
+  }
+  if (available > 0) {
+    return `${intro}No new unique jobs this run. Feed is up to date with ${opportunityLabel(available)}.${rejectedText}${warningText}`;
+  }
+  if (result.preprocessing_rejected > 0) {
+    return `${intro}No jobs were accepted this run. Rejected ${postingLabel(result.preprocessing_rejected)}.${warningText}`;
+  }
+  return `${intro}No new jobs were accepted from ${result.source_records_collected} collected records.${warningText}`;
 }
 
 function OpportunityCard({ job, bucket }: { job: JobRecord; bucket: OpportunityBucket }) {
@@ -169,15 +195,17 @@ export default function OpportunitiesPage() {
   const [scoreRange, setScoreRange] = useState<ScoreFilter>("All");
   const [eligibility, setEligibility] = useState<EligibilityFilter>("All");
 
-  async function loadJobs() {
+  async function loadJobs(): Promise<OpportunityFeedResponse | null> {
     setIsLoading(true);
     setError("");
     try {
       const feed = await getOpportunities();
       setJobs(feed.jobs);
       setSummary(feed.summary);
+      return feed;
     } catch (err) {
       setError(friendlyErrorMessage(err, "We could not load opportunities right now. Please try again."));
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -189,8 +217,8 @@ export default function OpportunitiesPage() {
     setNotice("");
     try {
       const result = await runIngestion();
-      setNotice(`Reviewed ${result.source_records_collected} jobs, rejected ${result.preprocessing_rejected} low-quality postings, and added ${result.gold_records_published} opportunities.`);
-      await loadJobs();
+      const feed = await loadJobs();
+      setNotice(buildIngestionNotice(result, feed));
     } catch (err) {
       setError(friendlyErrorMessage(err, "We could not refresh the opportunity feed right now. Please try again."));
     } finally {
@@ -212,10 +240,8 @@ export default function OpportunitiesPage() {
         desired_role: queueRole.trim() || null
       });
       const result = await runIngestion();
-      await loadJobs();
-      setNotice(
-        `${response.message} Reviewed queued sources now: ${result.gold_records_published} added, ${result.preprocessing_rejected} rejected by quality filters.`
-      );
+      const feed = await loadJobs();
+      setNotice(buildIngestionNotice(result, feed, response.message));
       setQueueUrl("");
     } catch (err) {
       setError(friendlyErrorMessage(err, "We could not add that job URL right now. Please try again."));

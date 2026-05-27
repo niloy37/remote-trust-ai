@@ -79,14 +79,6 @@ def recommended_action_for(
         return "Apply"
     return "Review carefully"
 
-    if final_score >= 80:
-        return "Apply"
-
-    if final_score >= 40:
-        return "Review carefully"
-
-    return "Avoid"
-
 def apply_graph_adjustments(scores: Scores, graph_verification: GraphVerification, had_existing_red_flags: bool) -> Scores:
     if graph_verification.status == "Strong graph evidence":
         return Scores(

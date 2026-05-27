@@ -15,6 +15,7 @@ if str(BACKEND) not in sys.path:
 from app.core.config import settings
 from app.db.database import list_jobs, reset_db
 from app.models import IngestionQueueRequest
+from app.services.job_fetcher import FetchResult
 from app.services.ingestion import enqueue_url, opportunity_feed, run_ingestion, source_file_path
 
 
@@ -104,6 +105,7 @@ def test_lakehouse_ingestion_layers_dedupe_and_publish(tmp_path: Path) -> None:
     assert len(list_jobs()) == 1
     assert feed.summary.jobs_collected == 6
     assert feed.summary.jobs_deduped == 1
+    assert feed.summary.opportunities_available == len(feed.jobs)
     assert feed.summary.preprocessing_rejected == 1
     assert feed.summary.verified_opportunities >= 1
     assert feed.summary.risky_jobs_filtered >= 1
@@ -114,9 +116,30 @@ def test_lakehouse_ingestion_layers_dedupe_and_publish(tmp_path: Path) -> None:
     assert any(job.extracted.apply_url for job in feed.jobs)
 
 
-def test_url_queue_adds_live_collection_input(tmp_path: Path) -> None:
+def test_url_queue_adds_live_collection_input_and_drains_after_processing(tmp_path: Path, monkeypatch) -> None:
     configure_ingestion(tmp_path)
     settings.ingestion_source_config.write_text(json.dumps({"file_sources": [], "feed_sources": []}), encoding="utf-8")
+
+    def fake_fetch_job_description(_url: str) -> FetchResult:
+        return FetchResult(
+            text="""
+            Company: QueueCloud
+            Job Title: Backend Engineer
+            Location: Remote worldwide
+            QueueCloud is a remote-first distributed team building workflow software.
+            Global applicants are welcome and contractor arrangements are supported.
+            Salary: USD $115,000-$145,000.
+            Responsibilities include building Python APIs, maintaining PostgreSQL services,
+            collaborating with product, and improving production reliability.
+            Required skills: Python, TypeScript, SQL, Docker, API design.
+            Benefits include paid time off, home office budget, and learning stipend.
+            Interview process: recruiter screen, technical interview, team interview.
+            Apply at https://jobs.lever.co/example/backend-engineer
+            """,
+            source="test fixture",
+        )
+
+    monkeypatch.setattr("app.services.ingestion.fetch_job_description", fake_fetch_job_description)
 
     response = enqueue_url(
         IngestionQueueRequest(
@@ -128,7 +151,15 @@ def test_url_queue_adds_live_collection_input(tmp_path: Path) -> None:
 
     assert response.queued
     assert response.queued_count == 1
-    assert (settings.lakehouse_path / "queue" / "url_queue.jsonl").exists()
+    queue_file = settings.lakehouse_path / "queue" / "url_queue.jsonl"
+    assert queue_file.exists()
+
+    result = run_ingestion()
+    feed = opportunity_feed()
+
+    assert result.gold_records_published == 1
+    assert queue_file.read_text(encoding="utf-8") == ""
+    assert feed.summary.opportunities_available == 1
 
 
 def test_deployed_data_mount_source_path_falls_back_to_packaged_data() -> None:

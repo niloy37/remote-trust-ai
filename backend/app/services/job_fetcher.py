@@ -331,28 +331,19 @@ def page_looks_blocked(text: str) -> bool:
 
 
 def fetch_job_description(url: str) -> FetchResult:
-    document = fetch_html(url)
-
     normalized_url = normalize_url(url)
-    if is_search_or_collection_url(normalized_url):
+    if is_search_or_collection_url(url) or is_search_or_collection_url(normalized_url):
         raise JobFetchError("This URL appears to be a search, collection, or listing page. Open an individual job posting URL or paste one full job description.")
 
     document = fetch_html(normalized_url)
     json_ld_text = extract_json_ld_job(document)
-
     visible_text = extract_visible_text(document)
-
     meta_text = extract_meta_summary(document)
-
-    inferred_company = infer_company_from_domain(url)
-
-    candidates = [json_ld_text, visible_text, meta_text]
-    best = max((candidate for candidate in candidates if candidate), key=len, default="")
-    if inferred_company and "Company:" not in best:
-        best = f"Company: {inferred_company}\n" + best
-        
+    inferred_company = infer_company_from_domain(normalized_url)
     candidates = [visible_text, meta_text]
     best = json_ld_text or max((candidate for candidate in candidates if candidate), key=len, default="")
+    if inferred_company and best and "Company:" not in best:
+        best = f"Company: {inferred_company}\n{best}"
     best = best[:30_000]
 
     if len(best) < 120 or page_looks_blocked(best):
