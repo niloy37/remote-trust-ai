@@ -54,150 +54,214 @@ def opportunities() -> OpportunityFeedResponse:
 
     if not feed.jobs:
         demo_jobs = [
-    {
-        "job_id": "demo-001",
-        "applicant_country": "India",
-        "desired_role": "Software Engineer",
-        "final_score": 92,
-        "verdict": "Verified",
-        "recommended_action": "Apply",
+            {
+                "job_id": "demo-001",
+                "applicant_country": "India",
+                "desired_role": "Software Engineer",
+                "final_score": 92,
+                "verdict": "Verified",
+                "recommended_action": "Apply",
 
-        "classification": {
-            "label": "LEGIT_REMOTE"
-        },
+                "flags": [],
+                "trust_signals": [
+                    "Verified ATS link",
+                    "Transparent compensation"
+                ],
+                "reasons": [
+                    "Remote-first organization"
+                ],
+                "evidence": [
+                    "Official careers portal"
+                ],
 
-        "scores": {
-            "remote_authenticity": 95
-        },
+                "classification": {
+                    "label": "LEGIT_REMOTE"
+                },
 
-        "company_verification": {
-            "status": "Verified"
-        },
+                "scores": {
+                    "remote_authenticity": 95
+                },
 
-        "extracted": {
-            "job_title": "Senior Software Engineer",
-            "company": "Northstar Labs",
-            "remote_type": "Fully Remote",
-            "apply_url": "https://jobs.greenhouse.io/northstarlabs/jobs/remote-senior-software-engineer"
-        }
-    },
+                "company_verification": {
+                    "status": "Verified"
+                },
 
-    {
-        "job_id": "demo-002",
-        "applicant_country": "Canada",
-        "desired_role": "Data Analyst",
-        "final_score": 88,
-        "verdict": "Verified",
-        "recommended_action": "Apply",
+                "extracted": {
+                    "job_title": "Senior Software Engineer",
+                    "company": "Northstar Labs",
+                    "remote_type": "Fully Remote",
+                    "apply_url": "https://jobs.greenhouse.io/northstarlabs/jobs/remote-senior-software-engineer"
+                }
+            },
 
-        "classification": {
-            "label": "LEGIT_REMOTE"
-        },
+            {
+                "job_id": "demo-002",
+                "applicant_country": "Canada",
+                "desired_role": "Data Analyst",
+                "final_score": 88,
+                "verdict": "Verified",
+                "recommended_action": "Apply",
 
-        "scores": {
-            "remote_authenticity": 90
-        },
+                "flags": [],
+                "trust_signals": [
+                    "Verified employer",
+                    "Transparent interview process"
+                ],
+                "reasons": [
+                    "Strong remote evidence"
+                ],
+                "evidence": [
+                    "Official ATS posting"
+                ],
 
-        "company_verification": {
-            "status": "Verified"
-        },
+                "classification": {
+                    "label": "LEGIT_REMOTE"
+                },
 
-        "extracted": {
-            "job_title": "Remote Data Analyst",
-            "company": "Atlas Metrics",
-            "remote_type": "Fully Remote",
-            "apply_url": "https://jobs.greenhouse.io/atlasmetrics/jobs/data-analyst-remote"
-        }
-    },
+                "scores": {
+                    "remote_authenticity": 90
+                },
 
-    {
-        "job_id": "demo-003",
-        "applicant_country": "Germany",
-        "desired_role": "Backend Engineer",
-        "final_score": 90,
-        "verdict": "Verified",
-        "recommended_action": "Apply",
+                "company_verification": {
+                    "status": "Verified"
+                },
 
-        "classification": {
-            "label": "LEGIT_REMOTE"
-        },
+                "extracted": {
+                    "job_title": "Remote Data Analyst",
+                    "company": "Atlas Metrics",
+                    "remote_type": "Fully Remote",
+                    "apply_url": "https://jobs.greenhouse.io/atlasmetrics/jobs/data-analyst-remote"
+                }
+            },
 
-        "scores": {
-            "remote_authenticity": 93
-        },
+            {
+                "job_id": "demo-003",
+                "applicant_country": "Germany",
+                "desired_role": "Backend Engineer",
+                "final_score": 90,
+                "verdict": "Verified",
+                "recommended_action": "Apply",
 
-        "company_verification": {
-            "status": "Verified"
-        },
+                "flags": [],
+                "trust_signals": [
+                    "Trusted application portal",
+                    "Clear salary disclosure"
+                ],
+                "reasons": [
+                    "Strong backend engineering signals"
+                ],
+                "evidence": [
+                    "Verified remote infrastructure role"
+                ],
 
-        "extracted": {
-            "job_title": "Backend Engineer",
-            "company": "RouteForge",
-            "remote_type": "Fully Remote",
-            "apply_url": "https://jobs.lever.co/routeforge/backend-engineer-go"
-        }
-    },
+                "classification": {
+                    "label": "LEGIT_REMOTE"
+                },
 
-    {
-        "job_id": "demo-004",
-        "applicant_country": "Brazil",
-        "desired_role": "Product Designer",
-        "final_score": 82,
-        "verdict": "Review",
-        "recommended_action": "Review Carefully",
+                "scores": {
+                    "remote_authenticity": 93
+                },
 
-        "classification": {
-            "label": "COUNTRY_RESTRICTED_REMOTE"
-        },
+                "company_verification": {
+                    "status": "Verified"
+                },
 
-        "scores": {
-            "remote_authenticity": 80
-        },
+                "extracted": {
+                    "job_title": "Backend Engineer",
+                    "company": "RouteForge",
+                    "remote_type": "Fully Remote",
+                    "apply_url": "https://jobs.lever.co/routeforge/backend-engineer-go"
+                }
+            },
 
-        "company_verification": {
-            "status": "Partially Verified"
-        },
+            {
+                "job_id": "demo-004",
+                "applicant_country": "Brazil",
+                "desired_role": "Product Designer",
+                "final_score": 82,
+                "verdict": "Review",
+                "recommended_action": "Review Carefully",
 
-        "extracted": {
-            "job_title": "Product Designer",
-            "company": "BrightCanvas",
-            "remote_type": "Europe Only",
-            "apply_url": "https://jobs.lever.co/brightcanvas/product-designer-remote"
-        }
-    },
+                "flags": [
+                    "Regional hiring restrictions"
+                ],
+                "trust_signals": [
+                    "Legitimate company domain"
+                ],
+                "reasons": [
+                    "Remote but region restricted"
+                ],
+                "evidence": [
+                    "Europe-only eligibility"
+                ],
 
-    {
-        "job_id": "demo-005",
-        "applicant_country": "United States",
-        "desired_role": "Security Engineer",
-        "final_score": 94,
-        "verdict": "Verified",
-        "recommended_action": "Apply",
+                "classification": {
+                    "label": "COUNTRY_RESTRICTED_REMOTE"
+                },
 
-        "classification": {
-            "label": "LEGIT_REMOTE"
-        },
+                "scores": {
+                    "remote_authenticity": 80
+                },
 
-        "scores": {
-            "remote_authenticity": 97
-        },
+                "company_verification": {
+                    "status": "Partially Verified"
+                },
 
-        "company_verification": {
-            "status": "Verified"
-        },
+                "extracted": {
+                    "job_title": "Product Designer",
+                    "company": "BrightCanvas",
+                    "remote_type": "Europe Only",
+                    "apply_url": "https://jobs.lever.co/brightcanvas/product-designer-remote"
+                }
+            },
 
-        "extracted": {
-            "job_title": "Security Engineer",
-            "company": "SafeCircuit",
-            "remote_type": "Fully Remote",
-            "apply_url": "https://jobs.ashbyhq.com/safecircuit/security-engineer"
-        }
-    }
-]
+            {
+                "job_id": "demo-005",
+                "applicant_country": "United States",
+                "desired_role": "Security Engineer",
+                "final_score": 94,
+                "verdict": "Verified",
+                "recommended_action": "Apply",
+
+                "flags": [],
+                "trust_signals": [
+                    "Verified cybersecurity employer",
+                    "Transparent hiring workflow"
+                ],
+                "reasons": [
+                    "Strong security engineering legitimacy"
+                ],
+                "evidence": [
+                    "Official AshbyHQ application"
+                ],
+
+                "classification": {
+                    "label": "LEGIT_REMOTE"
+                },
+
+                "scores": {
+                    "remote_authenticity": 97
+                },
+
+                "company_verification": {
+                    "status": "Verified"
+                },
+
+                "extracted": {
+                    "job_title": "Security Engineer",
+                    "company": "SafeCircuit",
+                    "remote_type": "Fully Remote",
+                    "apply_url": "https://jobs.ashbyhq.com/safecircuit/security-engineer"
+                }
+            }
+        ]
 
         feed.jobs = demo_jobs
         feed.summary.jobs_collected = len(demo_jobs)
-        feed.summary.verified_opportunities = len(demo_jobs)
+        feed.summary.jobs_deduped = len(demo_jobs)
+        feed.summary.verified_opportunities = 4
+        feed.summary.risky_jobs_filtered = 1
+        feed.summary.average_score = 89
         feed.summary.ingestion_status = "demo_seeded"
 
     return feed
