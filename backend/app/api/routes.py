@@ -62,8 +62,17 @@ def opportunities() -> OpportunityFeedResponse:
                 "remote_type": "Fully Remote",
                 "score": 92,
                 "classification": "LEGIT_REMOTE",
+                "verdict": "Verified",
                 "apply_url": "https://jobs.greenhouse.io/northstarlabs/jobs/remote-senior-software-engineer",
-                "summary": "Remote-first engineering role with verified hiring signals, transparent salary, and async collaboration."
+                "job_url": "https://jobs.greenhouse.io/northstarlabs/jobs/remote-senior-software-engineer",
+                "summary": "Remote-first engineering role with verified hiring signals and transparent compensation.",
+                "salary_range": "$140,000 - $180,000 USD",
+                "skills": ["Python", "FastAPI", "Docker", "AWS"],
+                "trust_signals": [
+                    "Verified ATS link",
+                    "Transparent compensation",
+                    "Remote-first organization"
+                ]
             },
             {
                 "job_id": "demo-002",
@@ -73,8 +82,17 @@ def opportunities() -> OpportunityFeedResponse:
                 "remote_type": "Fully Remote",
                 "score": 88,
                 "classification": "LEGIT_REMOTE",
+                "verdict": "Verified",
                 "apply_url": "https://jobs.greenhouse.io/atlasmetrics/jobs/data-analyst-remote",
-                "summary": "High-quality remote data analyst role with SQL, analytics, and async team collaboration."
+                "job_url": "https://jobs.greenhouse.io/atlasmetrics/jobs/data-analyst-remote",
+                "summary": "Remote analytics role focused on SQL, dashboards, and async collaboration.",
+                "salary_range": "$100,000 - $130,000 USD",
+                "skills": ["SQL", "Python", "Analytics"],
+                "trust_signals": [
+                    "Verified employer",
+                    "Public application portal",
+                    "Clear interview process"
+                ]
             },
             {
                 "job_id": "demo-003",
@@ -84,35 +102,21 @@ def opportunities() -> OpportunityFeedResponse:
                 "remote_type": "Fully Remote",
                 "score": 90,
                 "classification": "LEGIT_REMOTE",
+                "verdict": "Verified",
                 "apply_url": "https://jobs.lever.co/routeforge/backend-engineer-go",
-                "summary": "Distributed systems backend role focused on Go APIs, observability, and cloud infrastructure."
-            },
-            {
-                "job_id": "demo-004",
-                "title": "Product Designer",
-                "company": "BrightCanvas",
-                "location": "Europe Remote",
-                "remote_type": "Fully Remote",
-                "score": 85,
-                "classification": "COUNTRY_RESTRICTED_REMOTE",
-                "apply_url": "https://jobs.lever.co/brightcanvas/product-designer-remote",
-                "summary": "Remote UX/product design role with strong accessibility and collaboration practices."
-            },
-            {
-                "job_id": "demo-005",
-                "title": "Security Engineer",
-                "company": "SafeCircuit",
-                "location": "United States & Canada",
-                "remote_type": "Fully Remote",
-                "score": 93,
-                "classification": "LEGIT_REMOTE",
-                "apply_url": "https://jobs.ashbyhq.com/safecircuit/security-engineer",
-                "summary": "Application security engineering role supporting secure SDLC workflows and cloud security."
+                "job_url": "https://jobs.lever.co/routeforge/backend-engineer-go",
+                "summary": "Distributed systems backend engineering role with Go and cloud infrastructure.",
+                "salary_range": "$135,000 - $170,000 USD",
+                "skills": ["Go", "Kubernetes", "PostgreSQL"],
+                "trust_signals": [
+                    "Trusted ATS",
+                    "Transparent job requirements",
+                    "Global remote policy"
+                ]
             }
         ]
 
         feed.jobs = demo_jobs
-
         feed.summary.jobs_collected = len(demo_jobs)
         feed.summary.verified_opportunities = len(demo_jobs)
         feed.summary.ingestion_status = "demo_seeded"
